@@ -12,13 +12,14 @@ const Login = () => {
   const { user } = useAuth();
 
   useEffect(() => {
+    // upon mouting, if user exists, then we navigate to "/profile". this useEffect is also called when th4 state of user chages.
     if (user) {
       navigate("/profile");
     }
   }, [user, navigate]);
 
   const handleEmailLogin = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // prevents the screen from refreshing when form is sibmitted.
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/profile");

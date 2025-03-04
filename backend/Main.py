@@ -2,12 +2,14 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from config import supabase
 from users import users
-
+from routes import routes
 
 app = Flask(__name__)
 CORS(app)
 
 app.register_blueprint(users)
+app.register_blueprint(routes)
+
 
 @app.route("/api/test", methods=["GET"])
 def test():
