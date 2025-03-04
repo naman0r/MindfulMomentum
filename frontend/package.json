@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@firebase/auth": "^1.9.1",
     "@tailwindcss/vite": "^4.0.9",
+    "firebase": "^11.4.0",
     "lucide-react": "^0.477.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
