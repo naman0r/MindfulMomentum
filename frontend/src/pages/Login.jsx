@@ -1,19 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider } from "../config/firebase";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/profile");
+    }
+  }, [user, navigate]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard"); // Redirect to dashboard after successful login
+      navigate("/profile");
     } catch (error) {
       setError(error.message);
     }
@@ -49,7 +57,7 @@ const Login = () => {
       const data = await response.json();
       console.log("User data stored successfully:", data);
 
-      navigate("/dashboard");
+      navigate("/profile");
     } catch (error) {
       console.error("Google sign in error:", error);
       setError(`Authentication Error: ${error.message}`);
