@@ -33,3 +33,5 @@
 - Journalling function (CAN IMPLEMENT VOXYL IN THIS!!!!!!!)
 - level up and XP
 -
+
+- speech to text apis, openai api to extract action items from users logs and journal entries 
