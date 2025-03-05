@@ -6,7 +6,7 @@ const Error404 = () => {
   return (
     <div>
       <TopNav />
-      <div>Error404</div>
+      <div>You fucked up. No such route</div>
       <Footer />
     </div>
   );

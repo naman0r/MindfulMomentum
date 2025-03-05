@@ -9,7 +9,7 @@ const TopNav = () => {
       <div className="max-w-7xl mx-0 flex justify-between items-center">
         {/* Logo */}
         <Link to="/">
-          <img src="../../mm-logo.png" alt="logo" className="w-45 h-15" />
+          <img src="../../mm-logo.png" alt="logo" className="w-45 h-17" />
         </Link>
 
         {/* Navigation Links */}

@@ -1,9 +1,52 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import Footer from "../components/Footer";
 
+import { useAuth } from "../context/AuthContext";
+
 function Home() {
+  const { user } = useAuth(); // global state management- at least my attempt at it.
+  const [activeHabits, setActiveHabits] = useState(0);
+  const [numJournalEntries, setNumEntries] = useState(0);
+
+  useEffect(() => {
+    const fetchHabits = async () => {
+      if (user?.uid) {
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/get/habits/${user.uid}`
+          );
+          const data = await response.json();
+          setActiveHabits(data.length);
+        } catch (error) {
+          console.error("Error fetching habits:", error);
+        }
+      }
+    };
+
+    fetchHabits();
+  }, [user?.uid]); // Re-run when user changes
+
+  useEffect(() => {
+    const fetchNumEntries = async () => {
+      if (user?.uid) {
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/get/journals/${user.uid}`
+          );
+          const data = await response.json();
+          /* setNumEntries(data.length); */
+          setNumEntries(data.journals.length);
+        } catch (error) {
+          console.error("Error fetching habits:", error);
+        }
+      }
+    };
+
+    fetchNumEntries();
+  }, [user?.uid]); // Re-run when user changes
+
   return (
     <div className="min-h-screen bg-gray-50">
       <TopNav />
@@ -11,7 +54,7 @@ function Home() {
         {/* Hero Section */}
         <div className="text-center py-12">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
-            Welcome to Mindful Momentum
+            Welcome back, {user?.displayName.split(" ")[0] || "Guest"}!
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
             Track your habits, journal your thoughts, and boost your
@@ -151,7 +194,9 @@ function Home() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Active Habits
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">0</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {activeHabits}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -211,7 +256,9 @@ function Home() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Journal Entries
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">0</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {numJournalEntries}
+                    </dd>
                   </dl>
                 </div>
               </div>

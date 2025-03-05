@@ -15,7 +15,7 @@ import Productivity from "./pages/Productivity.jsx";
 import Profile from "./pages/Profile.jsx";
 import Error404 from "./pages/Error404.jsx";
 import Settings from "./pages/Settings.jsx";
-
+import JournalView from "./pages/JournalView.jsx";
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/app", element: <App /> },
@@ -26,6 +26,7 @@ const router = createBrowserRouter([
   { path: "/profile", element: <Profile /> },
   { path: "/*", element: <Error404 /> },
   { path: "/settings", element: <Settings /> },
+  { path: "/journal/:id", element: <JournalView /> },
 ]);
 
 createRoot(document.getElementById("root")).render(
