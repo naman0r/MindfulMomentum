@@ -10,13 +10,19 @@ function Home() {
   const [activeHabits, setActiveHabits] = useState(0);
   const [numJournalEntries, setNumEntries] = useState(0);
 
+  const token = localStorage.getItem("token");
+
   useEffect(() => {
     const fetchHabits = async () => {
       if (user?.uid) {
         try {
-          const response = await fetch(
-            `http://localhost:8000/api/get/habits/${user.uid}`
-          );
+          const response = await fetch(`http://localhost:8000/api/get/habits`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
           const data = await response.json();
           setActiveHabits(data.length);
         } catch (error) {
@@ -33,7 +39,14 @@ function Home() {
       if (user?.uid) {
         try {
           const response = await fetch(
-            `http://localhost:8000/api/get/journals/${user.uid}`
+            `http://localhost:8000/api/get/journals`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
           );
           const data = await response.json();
           /* setNumEntries(data.length); */
@@ -288,7 +301,7 @@ function Home() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Productivity Score
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">0%</dd>
+                    <dd className="text-lg font-medium text-gray-900">100%</dd>
                   </dl>
                 </div>
               </div>
