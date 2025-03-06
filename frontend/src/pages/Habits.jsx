@@ -16,22 +16,49 @@ function Habits() {
     goal: 1,
   });
 
-  useEffect(() => {
-    if (user) {
-      fetch(`http://localhost:8000/api/get/habits/${user.uid}`)
-        .then((res) => res.json())
-        .then(setHabits)
-        .catch((err) => console.error("Error fetching habits:", err));
-    }
-  }, [user]);
+  const token = localStorage.getItem("token"); // Retrieve JWT Token.
 
-  // delete habit function
+  useEffect(() => {
+    if (user && token) {
+      fetch(`http://localhost:8000/api/get/habits`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => {
+          console.log("Response Status:", res.status);
+          return res.json();
+        })
+        .then((data) => {
+          console.log("API Response:", data); // Debugging API response
+
+          if (Array.isArray(data)) {
+            setHabits(data);
+          } else {
+            console.error("Unexpected API response format:", data);
+            setHabits([]); // Default to empty array
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching habits:", err);
+          setHabits([]); // Default to empty array on error
+        });
+    }
+  }, [user, token]);
+
+  // ✅ FIX: Delete Habit with JWT
   const handleDeleteHabit = async (habitId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/delete/habit/${user.uid}/${habitId}`,
+        `http://localhost:8000/api/delete/habit/${habitId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
@@ -46,37 +73,55 @@ function Habits() {
     }
   };
 
+  //  Add Habit with JWT
   const handleAddHabit = async (e) => {
     e.preventDefault();
     if (!habitData.title.trim()) return;
 
-    const habitPayload = {
-      google_id: user.uid,
-      ...habitData,
-    };
+    console.log("Adding habit:", habitData);
+    console.log("JWT Token:", token);
 
     try {
       const response = await fetch("http://localhost:8000/api/add/habit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(habitPayload),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(habitData),
       });
 
-      if (response.ok) {
-        const updatedHabits = await fetch(
-          `http://localhost:8000/api/get/habits/${user.uid}`
-        ).then((res) => res.json());
-        setHabits(updatedHabits);
-        setHabitData({
-          title: "",
-          description: "",
-          frequency: "daily",
-          days_of_week: [],
-          reminder_time: "",
-          goal: 1,
-        });
-        setFormVisible(false);
+      console.log("Response Status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response from server:", errorData);
+        return;
       }
+
+      const updatedHabits = await fetch(
+        "http://localhost:8000/api/get/habits",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      console.log("Updated habits:", updatedHabits);
+
+      setHabits(updatedHabits);
+      setHabitData({
+        title: "",
+        description: "",
+        frequency: "daily",
+        days_of_week: [],
+        reminder_time: "",
+        goal: 1,
+      });
+      setFormVisible(false);
     } catch (error) {
       console.error("Error adding habit:", error);
     }
@@ -92,11 +137,12 @@ function Habits() {
 
         {/* Habit List */}
         <div className="space-y-4">
-          {habits.length === 0 ? (
+          {Array.isArray(habits) && habits.length === 0 ? (
             <p className="text-gray-500 text-center">
               No habits yet! Add one below.
             </p>
           ) : (
+            Array.isArray(habits) &&
             habits.map((habit) => (
               <div
                 key={habit.id}
@@ -173,84 +219,6 @@ function Habits() {
               className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
             />
 
-            <label className="block text-sm font-medium text-gray-700">
-              Frequency
-            </label>
-            <select
-              value={habitData.frequency}
-              onChange={(e) =>
-                setHabitData({ ...habitData, frequency: e.target.value })
-              }
-              className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </select>
-
-            {habitData.frequency === "weekly" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Select Days
-                </label>
-                <div className="flex space-x-2 mb-3">
-                  {[
-                    "Monday",
-                    "Tuesday",
-                    "Wednesday",
-                    "Thursday",
-                    "Friday",
-                    "Saturday",
-                    "Sunday",
-                  ].map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      className={`px-2 py-1 rounded-md ${
-                        habitData.days_of_week.includes(day)
-                          ? "bg-indigo-600 text-white"
-                          : "bg-gray-200"
-                      }`}
-                      onClick={() =>
-                        setHabitData((prev) => ({
-                          ...prev,
-                          days_of_week: prev.days_of_week.includes(day)
-                            ? prev.days_of_week.filter((d) => d !== day)
-                            : [...prev.days_of_week, day],
-                        }))
-                      }
-                    >
-                      {day.slice(0, 3)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <label className="block text-sm font-medium text-gray-700">
-              Reminder Time
-            </label>
-            <input
-              type="time"
-              value={habitData.reminder_time}
-              onChange={(e) =>
-                setHabitData({ ...habitData, reminder_time: e.target.value })
-              }
-              className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-
-            <label className="block text-sm font-medium text-gray-700">
-              Daily Goal
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={habitData.goal}
-              onChange={(e) =>
-                setHabitData({ ...habitData, goal: parseInt(e.target.value) })
-              }
-              className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-
             <div className="flex justify-between">
               <button
                 type="button"
@@ -262,6 +230,7 @@ function Habits() {
               <button
                 type="submit"
                 className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                onClick={handleAddHabit}
               >
                 Save Habit
               </button>

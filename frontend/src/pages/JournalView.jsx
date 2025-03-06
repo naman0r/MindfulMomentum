@@ -16,20 +16,25 @@ function JournalView() {
 
       try {
         const response = await fetch(
-          `http://localhost:8000/api/get/journals/${user.uid}`
+          `http://localhost:8000/api/get/journal/${id}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`, // ✅ Include JWT token
+              "Content-Type": "application/json",
+            },
+          }
         );
-        if (!response.ok) throw new Error("Failed to fetch journal entry");
-        const data = await response.json();
-        const foundEntry = data.journals.find((journal) => journal.id === id);
 
-        if (foundEntry) {
-          setEntry(foundEntry);
-        } else {
-          navigate("/journal"); // Redirect if entry not found
+        if (!response.ok) {
+          throw new Error("Failed to fetch journal entry");
         }
+
+        const data = await response.json();
+        setEntry(data.journal);
       } catch (error) {
         console.error("Error fetching journal entry:", error);
-        navigate("/journal"); // Redirect on error
+        navigate("/journal"); // ✅ Redirect on error
       } finally {
         setLoading(false);
       }
@@ -37,6 +42,31 @@ function JournalView() {
 
     fetchEntry();
   }, [id, user?.uid, navigate]);
+
+  const handleDeleteEntry = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/delete/journal/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error deleting journal entry:", errorData);
+        return;
+      }
+
+      navigate("/journal"); // ✅ Redirect after successful delete
+    } catch (error) {
+      console.error("Error deleting journal entry:", error);
+    }
+  };
 
   if (loading) {
     return (

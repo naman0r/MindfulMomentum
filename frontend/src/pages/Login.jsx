@@ -58,6 +58,10 @@ const Login = () => {
       const data = await response.json();
       console.log("User data stored successfully:", data);
 
+      // STORUNG THE JWT TOKEN
+      localStorage.setItem("token", data.access_token);
+      console.log(localStorage.getItem("token"));
+
       navigate("/profile");
     } catch (error) {
       console.error("Google sign in error:", error);

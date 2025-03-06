@@ -13,50 +13,121 @@ function Journal() {
     mood: "neutral",
   });
 
+  const token = localStorage.getItem("token");
+
   useEffect(() => {
-    if (!user) return;
+    if (!user || !token) return; // means user is not logged in, and we shouldn't bother the server with a get request.
 
     const fetchJournals = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8000/api/get/journals/${user.uid}`
-        );
-        if (!response.ok) throw new Error("Failed to fetch journal entries");
+        const response = await fetch(`http://localhost:8000/api/get/journals`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log(response.status, "response status <");
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error fetching journals:", errorData);
+          return;
+        }
+
         const data = await response.json();
-        setEntries(data.journals);
+        console.log("API Response:", data);
+
+        if (Array.isArray(data.journals)) {
+          setEntries(data.journals);
+        } else {
+          console.error("Unexpected API response format:", data);
+          setEntries([]);
+        }
       } catch (error) {
         console.error("Error fetching journals:", error);
+        setEntries([]);
       }
     };
 
     fetchJournals();
-  }, [user]);
+  }, [user, token]);
 
   const handleAddEntry = async () => {
     if (!newEntry.title.trim() || !newEntry.content.trim()) return;
 
-    const entryData = {
-      google_id: user.uid,
-      ...newEntry,
-    };
-
     try {
       const response = await fetch("http://localhost:8000/api/add/journal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entryData),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newEntry),
       });
 
-      if (response.ok) {
-        const updatedEntries = await fetch(
-          `http://localhost:8000/api/get/journals/${user.uid}`
-        ).then((res) => res.json());
-        setEntries(updatedEntries.journals);
-        setShowForm(false);
-        setNewEntry({ title: "", content: "", mood: "neutral" });
+      console.log("Response Status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error adding journal entry:", errorData);
+        return;
       }
+
+      const updatedEntries = await fetch(
+        "http://localhost:8000/api/get/journals",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      console.log("Updated Entries:", updatedEntries);
+
+      if (Array.isArray(updatedEntries.journals)) {
+        setEntries(updatedEntries.journals);
+      }
+
+      setShowForm(false);
+      setNewEntry({ title: "", content: "", mood: "neutral" });
     } catch (error) {
       console.error("Error adding journal entry:", error);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/delete/journal/${entryId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Response Status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error deleting journal entry:", errorData);
+        return;
+      }
+
+      // ✅ Remove deleted entry from state IMMEDIATELY without reloading
+      setEntries((prevEntries) =>
+        prevEntries.filter((entry) => entry.id !== entryId)
+      );
+
+      console.log(`Deleted entry ${entryId} successfully`);
+    } catch (error) {
+      console.error("Error deleting journal entry:", error);
     }
   };
 
@@ -164,7 +235,10 @@ function Journal() {
                     >
                       Read More
                     </Link>
-                    <button className="text-sm text-red-600 hover:text-red-900">
+                    <button
+                      className="text-sm text-red-600 hover:text-red-900"
+                      onClick={() => handleDeleteEntry(entry.id)}
+                    >
                       Delete
                     </button>
                   </div>
