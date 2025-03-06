@@ -1,22 +1,37 @@
+# main.py, entry point. 
+
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from config import supabase
 from api import api
 from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
+from flask_talisman import Talisman #to make sevrer more secure, add https
+
+
+import os
+
+load_dotenv()
 
 
 
 app = Flask(__name__)
-CORS(app)
 
-app.config["JWT_SECRET_KEY"] = "hfwkhsdfpkdfpwouw1eo23`02399vdhkhkllhkdavclk"  # CHANGE THIS TO A RANDOM STRING
+# Allow CORS for all domains on all routes
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")  # Load JWT Secret Key from .env
+# app.config["PREFERRED_URL_SCHEME"] = "https" # ???? does this actualy work
+
+
+# Talisman(app)
 
 jwt = JWTManager(app)
 
-users = {"naman": {"password": "password123"}}
 
 
-SESSION_DURATION = 60*  60 * 24 * 7 # 7 days in seconds
+
+
 
 app.register_blueprint(api)
 

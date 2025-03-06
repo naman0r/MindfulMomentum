@@ -1,11 +1,15 @@
+# api.py, most routes. 
+
 from flask import Blueprint, request, jsonify, Flask, make_response
 from config import supabase
 from datetime import datetime, timedelta
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+
 
 api = Blueprint("api", __name__)
 
 # User Routes
-@api.route("/api/login", methods=["GET"])
+@api.route("/api/login", methods=["GET"]) # lowkey unprotected route, just helps me get the info of all users. 
 def get_users(): 
     try:
         response = supabase.from_("users").select("*").execute()
@@ -13,6 +17,9 @@ def get_users():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+# trying to implement JWT with login. this is the entrypoint where it returns a JWT upon login. 
 @api.route("/api/login", methods=["POST"])
 def login():
     try:
@@ -33,7 +40,7 @@ def login():
         if existing_user:
             # Update last_logged_in timestamp
             supabase.from_("users").update({"last_logged_in": last_logged_in}).eq("google_id", google_id).execute()
-            return jsonify({"message": "User logged in", "user": existing_user[0]}), 200
+            user = existing_user[0]
         else:
             # Insert new user
             new_user = {
@@ -44,7 +51,11 @@ def login():
                 "last_logged_in": last_logged_in
             }
             response = supabase.from_("users").insert(new_user).execute()
-            return jsonify({"message": "New user added", "user": response.data}), 201
+            user = response.data[0]
+
+        # Generate JWT
+        access_token = create_access_token(identity=google_id)
+        return jsonify({"message": "User logged in", "user": user, "access_token": access_token}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -53,29 +64,70 @@ def login():
 
 
 
+## =============================== HABITS ===================================
+
+
+
+# unprotected habits route (debugging purposes only, not for prod)
+@api.route("/api/get/habits/all", methods=["GET"])
+def get_all_habits(): 
+    try: 
+    
+        response = supabase.from_("habits").select("*").execute()
+        journals = response.data
+        return jsonify({"all habits" : journals}), 200
+    
+    except Exception as e: 
+        return jsonify({"error" : str(e)}), 500
+    
+
 
 # for habits: 
 @api.route("/api/add/habit", methods=["POST"])
+@jwt_required()
 def add_habit():
+    google_id = get_jwt_identity()
     data = request.json
+    print(f"Received habit data: {data}")  # Debugging
+
+    if not data.get("title"):
+        print("Error: Missing title field")
+        return jsonify({"error": "Title is required"}), 400
+    
+    reminder_time  = data.get("reminder_time")
+    if reminder_time == "":
+        reminder_time = None
+        
+
     new_habit = {
-        "google_id": data["google_id"],
+        "google_id": google_id,
         "title": data["title"],
         "description": data.get("description", ""),
         "frequency": data.get("frequency", "daily"),
         "days_of_week": data.get("days_of_week", []),
-        "reminder_time": data.get("reminder_time", None),
+        "reminder_time": reminder_time, 
         "created_at": datetime.utcnow().isoformat(),
         "completed_dates": [],
         "streak": 0,
         "goal": data.get("goal", 1),
         "progress": 0
     }
-    response = supabase.from_("habits").insert(new_habit).execute()
-    return jsonify(response.data)
 
-@api.route("/api/get/habits/<google_id>", methods=["GET"])
-def get_habits(google_id):
+    try:
+        response = supabase.from_("habits").insert(new_habit).execute()
+        print("Habit added successfully:", response.data)  # Debugging
+        return jsonify({"message": "Habit added successfully"}), 201
+    except Exception as e:
+        print("Error adding habit:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/get/habits", methods=["GET"])
+@jwt_required()
+def get_habits():
+    
+    google_id = get_jwt_identity()  # Extract user identity from JWT wtffffffffff this is cool but is it secure? 
+    
     response = supabase.from_("habits").select("*").eq("google_id", google_id).execute()
     habits = response.data
 
@@ -91,9 +143,12 @@ def get_habits(google_id):
 
     return jsonify(filtered_habits)
 
-@api.route("/api/delete/habit/<google_id>/<id>", methods=["DELETE"])
-def delete_habit(google_id, id):
+@api.route("/api/delete/habit/<id>", methods=["DELETE"])
+@jwt_required()
+def delete_habit(id):
     try:
+        
+        google_id = get_jwt_identity() # extract google id from identity 
         # Check if the habit exists
         response = supabase.from_("habits").select("*").eq("id", id).eq("google_id", google_id).execute()
         
@@ -110,23 +165,57 @@ def delete_habit(google_id, id):
 
 
 
+
+##=================  JOURNAL ROUTES ==========================================
+
+
+
 ## for Journal entries: 
 
-@api.route("/api/get/journals/<google_id>", methods = ["GET"])
-def get_users_journals(google_id):
+
+
+# get ALL journals (unprotected route, for development purposes only )
+@api.route("/api/get/journals/all", methods=["GET"])
+def get_all_entries(): 
+    try: 
+        
+        response = supabase.from_("journals").select("*").execute()
+        journals = response.data
+        return jsonify({"all journals" : journals}), 200
+        
+    except Exception as e: 
+        return jsonify({"error" : str(e)}), 500
+
+
+
+# get a user's journals. 
+@api.route("/api/get/journals", methods = ["GET"])
+@jwt_required()
+def get_users_journals():
     
     try: 
+        
+        google_id = get_jwt_identity()
         response = supabase.from_("journals").select("*").eq("google_id", google_id).execute()
         journals = response.data
         return jsonify({"journals": journals}), 200
     except Exception as e: 
         return jsonify({"error": e}), 500
     
+    
+    
+    
 @api.route("/api/add/journal", methods=["POST"])
+@jwt_required()
 def add_journal_entry(): 
     try: 
+        google_id = get_jwt_identity()
         data = request.json
-        google_id = data.get("google_id")
+        
+        
+       
+        
+        
         title = data.get("title")
         content = data.get("content")
         mood = data.get("mood", "neutral")
@@ -134,7 +223,7 @@ def add_journal_entry():
         attachments = data.get("attachments", [])
         privacy = data.get("privacy", "private")
 
-        if not google_id or not title or not content:
+        if not title or not content:
             return jsonify({"error": "Missing required fields"}), 400
 
         new_entry = {
@@ -154,3 +243,56 @@ def add_journal_entry():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/delete/journal/<id>", methods=["DELETE"])
+@jwt_required()
+def delete_entry(id):
+    try: 
+        google_id = get_jwt_identity()
+
+        #  Step 1: Fetch journal entry
+        response = supabase.from_("journals").select("*").eq("id", id).execute()
+        journal_entry = response.data
+
+        if not journal_entry:
+            return jsonify({"error": "Journal entry not found"}), 404
+
+        if journal_entry[0]["google_id"] != google_id:
+            return jsonify({"error": "Unauthorized: You cannot delete this journal entry"}), 403
+
+        # Step 2: Delete the journal entry
+        delete_response = supabase.from_("journals").delete().eq("id", id).execute()
+
+        # Ensure deletion was successful
+        if delete_response.data is None:  # Supabase returns None if deletion fails
+            return jsonify({"error": "Failed to delete journal entry"}), 500
+
+        return jsonify({"message": "Journal entry deleted successfully", "deleted_id": id}), 200
+
+    except Exception as e: 
+        return jsonify({"error": str(e)}), 500
+
+        
+@api.route('/api/get/journal/<id>', methods=["GET"])
+@jwt_required()
+def get_entry_by_id(id):
+    try: 
+        google_id = get_jwt_identity()
+        response = supabase.from_("journals").select("*").eq("id", id).execute()
+        journal_entry = response.data
+
+        if not journal_entry:
+            return jsonify({"error": "Journal entry not found"}), 404
+
+        if journal_entry[0]["google_id"] != google_id:
+            return jsonify({"error": "Unauthorized: You cannot view this journal entry! fraud!"}), 403
+        
+        return jsonify({"journal" : journal_entry[0] }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    
+
+    
