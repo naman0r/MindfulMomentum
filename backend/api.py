@@ -296,3 +296,101 @@ def get_entry_by_id(id):
     
 
     
+# ================================ TASKS ROUTES =================================
+
+
+@api.route('/api/get/tasks/all', methods=["GET"])
+def get_all_tasks_unprotected(): 
+    try: 
+        response = supabase.from_("tasks").select("*").execute()
+        tasks  = response.data
+        return jsonify({"tasks": tasks}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+@api.route("/api/get/tasks", methods=["GET"])
+@jwt_required()
+def get_tasks():
+    try:
+        google_id = get_jwt_identity()  # Extract user identity from JWT
+        response = supabase.from_("tasks").select("*").eq("google_id", google_id).execute()
+        tasks = response.data
+        return jsonify({"tasks": tasks}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/add/task", methods=["POST"])
+@jwt_required()
+def add_task():
+    try:
+        google_id = get_jwt_identity()  # Extract user identity from JWT
+        data = request.json
+        new_task = {
+            "google_id": google_id,
+            "title": data["title"],
+            "description": data.get("description", ""),
+            "due_date": data.get("due_date"),
+            "priority": data.get("priority", 5),
+            "completed": False,
+        }
+        response = supabase.from_("tasks").insert(new_task).execute()
+        return jsonify({"message": "Task added successfully", "task": response.data}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/delete/task/<task_id>", methods=["DELETE"])
+@jwt_required()
+def delete_task(task_id):
+    try:
+        google_id = get_jwt_identity()  # Extract user identity from JWT
+
+        # Fetch the task first
+        response = supabase.from_("tasks").select("*").eq("id", task_id).execute()
+        task = response.data
+
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        
+        if task[0]["google_id"] != google_id:
+            return jsonify({"error": "You do not have permission to delete this task."}), 403
+
+        # Now, safely delete the task
+        supabase.from_("tasks").delete().eq("id", task_id).execute()
+        return jsonify({"message": "Task deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/toggle/task/<task_id>", methods=["PATCH"])
+@jwt_required()
+def complete_task(task_id):
+    try:
+        google_id = get_jwt_identity()  # Extract user identity from JWT
+
+        # Fetch the task first
+        response = supabase.from_("tasks").select("*").eq("id", task_id).execute()
+        task = response.data
+
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        
+        if task[0]["google_id"] != google_id:
+            return jsonify({"error": "You do not have permission to modify this task."}), 403
+        
+        
+        if task[0]["completed"] == True :
+            supabase.from_("tasks").update({"completed": False}).eq("id", task_id).execute()
+        else: 
+             # Now, safely update the task
+            supabase.from_("tasks").update({"completed": True}).eq("id", task_id).execute()
+            
+        return jsonify({"message": "Task marked as completed"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
