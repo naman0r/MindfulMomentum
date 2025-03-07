@@ -33,7 +33,6 @@ const Login = () => {
       const result = await signInWithPopup(auth, googleProvider);
       console.log("Google sign in successful:", result);
 
-      // Extract user data from the Google sign-in result
       const userData = {
         google_id: result.user.uid,
         email: result.user.email,
@@ -41,7 +40,6 @@ const Login = () => {
         profile_picture: result.user.photoURL,
       };
 
-      // Send user data to backend
       const response = await fetch("http://localhost:8000/api/login", {
         method: "POST",
         headers: {
@@ -58,9 +56,24 @@ const Login = () => {
       const data = await response.json();
       console.log("User data stored successfully:", data);
 
-      // STORUNG THE JWT TOKEN
+      // Store token in localStorage for web app
       localStorage.setItem("token", data.access_token);
-      console.log(localStorage.getItem("token"));
+
+      // Send message to extension if it exists
+      if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+        try {
+          await chrome.runtime.sendMessage(
+            "kieebkclddlihhbiaopfbpfgiondplmh", //change extension id HERE for prod
+            {
+              type: "SAVE_TOKEN",
+              token: data.access_token,
+            }
+          );
+          console.log("Token sent to extension");
+        } catch (err) {
+          console.log("Extension not found or not accessible"); // yoooooo this is so cool
+        }
+      }
 
       navigate("/profile");
     } catch (error) {

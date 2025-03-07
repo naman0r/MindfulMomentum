@@ -4,12 +4,27 @@
 
 - Frontend: React.js, Tailwind.css, PrimeReact, React-router-dom, vite
 - Backend: Flask server with python, supabase as the official sql database.
-- Authentication: Firebase (already implemented)
+- Authentication: Firebase (already implemented), JWT (implemented)
 
-### to dos:
+## how this works:
 
-- figure out how to use JSON Web Tokens or cookies to actually secyre the communication between the frontend and backend.
-- [youtube video for more info](https://www.youtube.com/watch?v=dZ2CkvxuWIo)
+### login and token storage:
+
+- sends a login POST request to http://localhost:8000/api/login, and receives a response with a JWT token.
+- handleGoogleLogin function in Login.jsx ->
+  1.stores token (JWT) in localStorage under "token". 2. sends token to chrome extension (sends to extension id)
+
+- extension receives token (background.js), and sets token in chrome.storage
+- extension uses token to fetch tasks in popup.js in the async fetchTasks function.
+
+flow:
+
+- User logs in through web app
+- Web app gets token from backend
+- Web app sends token to extension
+- Extension stores token in Chrome storage
+- Extension uses token to fetch tasks
+- Tasks are displayed in extension popup
 
 ### Why Am I doing this project, and what I hope to gain by the end:
 
@@ -33,3 +48,98 @@
 - Journalling function (CAN IMPLEMENT VOXYL IN THIS!!!!!!!)
 - level up and XP
 - speech to text apis, openai api to extract action items from users logs and journal entries
+
+## architecture:
+
+### FRONTENEnd Main components:
+
+- Login.jsx // Handles authentication with Google
+- Habits.jsx // Manages user habits
+- Journal.jsx // Manages journal entries
+- Productivity.jsx // Manages tasks and productivity features
+- AuthContext.jsx // Global state management for user auth
+
+#### Key Features:
+
+Uses Firebase for Google Authentication
+Stores JWT token in localStorage
+Makes API calls to your backend
+Communicates with Chrome extension
+
+### BACKEND Main components:
+
+- main.py // Entry point, sets up Flask app
+- api.py // Combined API routes
+- config.py // Configuration and Supabase setup
+
+### chrome extension (extension/) Main components:
+
+- popup/ // UI that appears when clicking extension
+- background/ // Background scripts for focus mode
+- content/ // Scripts that run on web pages
+
+### Login Flow:
+
+User -> Google Auth -> Frontend -> Backend -> Supabase
+-> Store Token -> Extension
+
+Task Management Flow:
+Frontend -> Backend -> Supabase
+Extension -> Backend -> Supabase
+
+Focus Mode Flow:
+Extension Popup -> Background Script -> Website Blocking
+
+### Database architecture:
+
+tables:
+
+- users
+
+  - google_id
+  - email
+  - name
+  - profile_picture
+
+- habits
+
+  - user_id
+  - title
+  - description
+  - frequency
+  - streak
+
+- tasks
+
+  - user_id
+  - title
+  - description
+  - due_date
+  - priority
+  - completed
+
+- journal_entries
+  - user_id
+  - title
+  - content
+  - mood
+  - date
+
+## Key technologies:
+
+Frontend:
+
+- React
+- Firebase Auth
+- TailwindCSS
+
+Backend:
+
+- Flask
+- JWT
+- Supabase
+
+Extension:
+
+- Chrome APIs
+- HTML/CSS/JS

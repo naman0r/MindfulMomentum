@@ -9,7 +9,7 @@ function Productivity() {
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
-    due_date: "undefined", // make default something ridiculous
+    due_date: "3000-04-20", // make default something ridiculous
     priority: 5,
   });
 

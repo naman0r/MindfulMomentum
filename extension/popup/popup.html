@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MindfulMomentum</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tasks">Tasks</button>
+        <button class="tab-btn" data-tab="focus">Focus</button>
+      </div>
+
+      <div class="tab-content" id="tasks-tab">
+        <h2>My Tasks</h2>
+        <div id="tasks-list" class="tasks-list">
+          <!-- Tasks will be populated here -->
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="focus-tab">
+        <h2>Focus Mode</h2>
+        <div class="timer-container">
+          <div id="timer">25:00</div>
+          <button id="start-focus">Start Focus</button>
+          <button id="stop-focus" disabled>Stop Focus</button>
+        </div>
+
+        <div class="blocked-sites">
+          <h3>Blocked Websites</h3>
+          <input type="text" id="site-input" placeholder="Enter website URL" />
+          <button id="add-site">Add Site</button>
+          <ul id="blocked-sites-list">
+            <!-- Blocked sites will be populated here -->
+          </ul>
+        </div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
