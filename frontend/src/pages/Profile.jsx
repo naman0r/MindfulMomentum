@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import TopNav from "../components/TopNav";
+import Footer from "../components/Footer";
 
 function Profile() {
   const { user, logout } = useAuth();
@@ -88,6 +89,7 @@ function Profile() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

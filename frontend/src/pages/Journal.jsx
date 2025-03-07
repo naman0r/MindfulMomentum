@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import TopNav from "../components/TopNav";
+import Footer from "../components/Footer.jsx";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 
@@ -248,6 +249,7 @@ function Journal() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

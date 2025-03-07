@@ -86,7 +86,7 @@ function JournalView() {
   return (
     <div className="min-h-screen bg-gray-50">
       <TopNav />
-      <div className="max-w-3xl mx-auto py-6">
+      <div className="max-w-5xl mx-auto py-6">
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -107,6 +107,12 @@ function JournalView() {
           </div>
 
           <div className="mt-6 flex justify-end space-x-2">
+            <button
+              onClick={console.log("update functionality not implemented")}
+              className="px-4 py-2 text-gray-900 bg-blue-200 rounded-md hover:bg-gray-300"
+            >
+              Update
+            </button>
             <button
               onClick={() => navigate("/journal")}
               className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
