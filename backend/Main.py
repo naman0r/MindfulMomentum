@@ -17,8 +17,14 @@ load_dotenv()
 # test. 
 app = Flask(__name__)
 
-# Allow CORS for all domains on all routes
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+# Configure CORS
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["http://localhost:5173", "http://localhost:3000", "https://mindfulmomentum.vercel.app"],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+         "allow_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True
+     }})
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")  # Load JWT Secret Key from .env
 # app.config["PREFERRED_URL_SCHEME"] = "https" # ???? does this actualy work

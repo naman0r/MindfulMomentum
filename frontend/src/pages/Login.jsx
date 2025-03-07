@@ -40,13 +40,16 @@ const Login = () => {
         profile_picture: result.user.photoURL,
       };
 
-      const response = await fetch("http://localhost:8000/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -71,7 +74,7 @@ const Login = () => {
           );
           console.log("Token sent to extension");
         } catch (err) {
-          console.log("Extension not found or not accessible"); // yoooooo this is so cool
+          console.log("Extension not found or not accessible");
         }
       }
 

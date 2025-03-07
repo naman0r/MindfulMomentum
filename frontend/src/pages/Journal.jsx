@@ -17,19 +17,20 @@ function Journal() {
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    if (!user || !token) return; // means user is not logged in, and we shouldn't bother the server with a get request.
+    if (!user || !token) return;
 
     const fetchJournals = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/get/journals`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log(response.status, "response status <");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -59,16 +60,17 @@ function Journal() {
     if (!newEntry.title.trim() || !newEntry.content.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:8000/api/add/journal", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newEntry),
-      });
-
-      console.log("Response Status:", response.status);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/add/journal`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newEntry),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -76,8 +78,8 @@ function Journal() {
         return;
       }
 
-      const updatedEntries = await fetch(
-        "http://localhost:8000/api/get/journals",
+      const updatedResponse = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
         {
           method: "GET",
           headers: {
@@ -85,12 +87,12 @@ function Journal() {
             "Content-Type": "application/json",
           },
         }
-      ).then((res) => res.json());
+      );
 
-      console.log("Updated Entries:", updatedEntries);
+      const updatedData = await updatedResponse.json();
 
-      if (Array.isArray(updatedEntries.journals)) {
-        setEntries(updatedEntries.journals);
+      if (Array.isArray(updatedData.journals)) {
+        setEntries(updatedData.journals);
       }
 
       setShowForm(false);
@@ -103,7 +105,7 @@ function Journal() {
   const handleDeleteEntry = async (entryId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/delete/journal/${entryId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/delete/journal/${entryId}`,
         {
           method: "DELETE",
           headers: {
@@ -113,15 +115,12 @@ function Journal() {
         }
       );
 
-      console.log("Response Status:", response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Error deleting journal entry:", errorData);
         return;
       }
 
-      // ✅ Remove deleted entry from state IMMEDIATELY without reloading
       setEntries((prevEntries) =>
         prevEntries.filter((entry) => entry.id !== entryId)
       );

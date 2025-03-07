@@ -1,20 +1,119 @@
-const BASE_URL = "http://localhost:8000/api"; // Updated port to match backend
+const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
-// get a user's habits
-export const getHabits = async (userId) => {
-  try {
-    console.log("Fetching habits for user:", userId);
-    const response = await fetch(`${BASE_URL}/habits/${userId}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    console.log("Received habits:", data);
-    return data;
-  } catch (error) {
-    console.error("Error fetching habits:", error);
-    throw error;
-  }
+// Auth
+export const loginUser = async (userData) => {
+  const response = await fetch(`${BASE_URL}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(userData),
+  });
+  return response.json();
+};
+
+// Journal endpoints
+export const getJournals = async (token) => {
+  const response = await fetch(`${BASE_URL}/get/journals`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+export const getJournalById = async (id, token) => {
+  const response = await fetch(`${BASE_URL}/get/journal/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+export const addJournal = async (journalData, token) => {
+  const response = await fetch(`${BASE_URL}/add/journal`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(journalData),
+  });
+  return response.json();
+};
+
+export const deleteJournal = async (id, token) => {
+  const response = await fetch(`${BASE_URL}/delete/journal/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+// Tasks endpoints
+export const getTasks = async (token) => {
+  const response = await fetch(`${BASE_URL}/get/tasks`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+export const addTask = async (taskData, token) => {
+  const response = await fetch(`${BASE_URL}/add/task`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(taskData),
+  });
+  return response.json();
+};
+
+export const deleteTask = async (taskId, token) => {
+  const response = await fetch(`${BASE_URL}/delete/task/${taskId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+export const toggleTask = async (taskId, token) => {
+  const response = await fetch(`${BASE_URL}/toggle/task/${taskId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
+};
+
+// Habits endpoints
+export const getHabits = async (token) => {
+  const response = await fetch(`${BASE_URL}/get/habits`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.json();
 };
 
 // Add a New Habit

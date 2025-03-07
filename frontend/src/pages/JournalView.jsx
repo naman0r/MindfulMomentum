@@ -16,11 +16,11 @@ function JournalView() {
 
       try {
         const response = await fetch(
-          `http://localhost:8000/api/get/journal/${id}`,
+          `${import.meta.env.VITE_BACKEND_URL}/get/journal/${id}`,
           {
             method: "GET",
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`, // ✅ Include JWT token
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
               "Content-Type": "application/json",
             },
           }
@@ -34,7 +34,7 @@ function JournalView() {
         setEntry(data.journal);
       } catch (error) {
         console.error("Error fetching journal entry:", error);
-        navigate("/journal"); // ✅ Redirect on error
+        navigate("/journal");
       } finally {
         setLoading(false);
       }
@@ -46,7 +46,7 @@ function JournalView() {
   const handleDeleteEntry = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/delete/journal/${id}`,
+        `${import.meta.env.VITE_BACKEND_URL}/delete/journal/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -62,7 +62,7 @@ function JournalView() {
         return;
       }
 
-      navigate("/journal"); // ✅ Redirect after successful delete
+      navigate("/journal");
     } catch (error) {
       console.error("Error deleting journal entry:", error);
     }

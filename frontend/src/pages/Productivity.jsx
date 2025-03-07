@@ -20,13 +20,16 @@ function Productivity() {
 
     const fetchTasks = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/get/tasks`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/get/tasks`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (!response.ok) {
           console.error("Error fetching tasks");
@@ -47,27 +50,33 @@ function Productivity() {
     if (!newTask.title.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:8000/api/add/task", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newTask),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/add/task`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newTask),
+        }
+      );
 
       if (!response.ok) {
         console.error("Error adding task");
         return;
       }
 
-      const updatedTasks = await fetch("http://localhost:8000/api/get/tasks", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }).then((res) => res.json());
+      const updatedTasks = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/get/tasks`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
 
       setTasks(updatedTasks.tasks || []);
       setShowForm(false);
@@ -85,7 +94,7 @@ function Productivity() {
   const handleDeleteTask = async (taskId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/delete/task/${taskId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/delete/task/${taskId}`,
         {
           method: "DELETE",
           headers: {
@@ -109,7 +118,7 @@ function Productivity() {
   const handleToggleTask = async (taskId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/toggle/task/${taskId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/toggle/task/${taskId}`,
         {
           method: "PATCH",
           headers: {

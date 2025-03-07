@@ -20,7 +20,7 @@ function Habits() {
 
   useEffect(() => {
     if (user && token) {
-      fetch(`http://localhost:8000/api/get/habits`, {
+      fetch(`${import.meta.env.VITE_BACKEND_URL}/api/get/habits`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -52,7 +52,7 @@ function Habits() {
   const handleDeleteHabit = async (habitId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/delete/habit/${habitId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/delete/habit/${habitId}`,
         {
           method: "DELETE",
           headers: {
@@ -82,14 +82,17 @@ function Habits() {
     console.log("JWT Token:", token);
 
     try {
-      const response = await fetch("http://localhost:8000/api/add/habit", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(habitData),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/add/habit`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(habitData),
+        }
+      );
 
       console.log("Response Status:", response.status);
 
@@ -100,7 +103,7 @@ function Habits() {
       }
 
       const updatedHabits = await fetch(
-        "http://localhost:8000/api/get/habits",
+        `${import.meta.env.VITE_BACKEND_URL}/api/get/habits`,
         {
           method: "GET",
           headers: {

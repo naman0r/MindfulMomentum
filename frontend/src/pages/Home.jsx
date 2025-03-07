@@ -16,13 +16,16 @@ function Home() {
     const fetchHabits = async () => {
       if (user?.uid) {
         try {
-          const response = await fetch(`http://localhost:8000/api/get/habits`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+          const response = await fetch(
+            `${import.meta.env.VITE_BACKEND_URL}/get/habits`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
           const data = await response.json();
           setActiveHabits(data.length);
         } catch (error) {
@@ -39,7 +42,7 @@ function Home() {
       if (user?.uid) {
         try {
           const response = await fetch(
-            `http://localhost:8000/api/get/journals`,
+            `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
             {
               method: "GET",
               headers: {
@@ -49,7 +52,6 @@ function Home() {
             }
           );
           const data = await response.json();
-          /* setNumEntries(data.length); */
           setNumEntries(data.journals.length);
         } catch (error) {
           console.error("Error fetching habits:", error);
