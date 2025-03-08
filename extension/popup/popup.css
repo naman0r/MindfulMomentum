@@ -61,11 +61,46 @@ body {
   margin: 24px 0;
 }
 
+.timer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+#increase-time,
+#decrease-time {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background-color: #4a90e2;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+#increase-time:hover,
+#decrease-time:hover {
+  background-color: #357abd;
+}
+
+#increase-time:disabled,
+#decrease-time:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 #timer {
-  font-size: 48px;
+  font-size: 24px;
   font-weight: bold;
-  color: #4f46e5;
-  margin-bottom: 16px;
+  min-width: 80px;
+  text-align: center;
 }
 
 button {

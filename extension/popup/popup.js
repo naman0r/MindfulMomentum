@@ -104,7 +104,41 @@ async function toggleTask(taskId) {
 }
 
 // Focus mode and Timer
-let focusTimer;
+const MIN_SECONDS = 60; // 1 minute
+const MAX_SECONDS = 80 * 60; // 80 minutes
+let currentSeconds = 25 * 60; // 25 minutes default
+
+function initializeTimer() {
+  chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
+    if (response && response.timerState) {
+      currentSeconds = response.timerState.timeLeft;
+      updateTimerDisplay(currentSeconds);
+      updateFocusControls(response.timerState.isRunning);
+    }
+  });
+}
+
+document.getElementById("increase-time").addEventListener("click", () => {
+  if (currentSeconds < MAX_SECONDS && !isTimerRunning()) {
+    currentSeconds += 60;
+    updateTimerDisplay(currentSeconds);
+    chrome.runtime.sendMessage({
+      type: "UPDATE_TIMER_DURATION",
+      duration: currentSeconds,
+    });
+  }
+});
+
+document.getElementById("decrease-time").addEventListener("click", () => {
+  if (currentSeconds > MIN_SECONDS && !isTimerRunning()) {
+    currentSeconds -= 60;
+    updateTimerDisplay(currentSeconds);
+    chrome.runtime.sendMessage({
+      type: "UPDATE_TIMER_DURATION",
+      duration: currentSeconds,
+    });
+  }
+});
 
 function updateTimerDisplay(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -112,29 +146,55 @@ function updateTimerDisplay(seconds) {
   document.getElementById("timer").textContent = `${minutes
     .toString()
     .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+
+  // Update button states
+  const isRunning = isTimerRunning();
+  document.getElementById("increase-time").disabled =
+    seconds >= MAX_SECONDS || isRunning;
+  document.getElementById("decrease-time").disabled =
+    seconds <= MIN_SECONDS || isRunning;
+}
+
+function isTimerRunning() {
+  return !document.getElementById("start-focus").disabled;
 }
 
 function updateFocusControls(isRunning) {
   document.getElementById("start-focus").disabled = isRunning;
   document.getElementById("stop-focus").disabled = !isRunning;
+  document.getElementById("increase-time").disabled = isRunning;
+  document.getElementById("decrease-time").disabled = isRunning;
 }
 
 // Update timer display every second
-setInterval(() => {
+const updateInterval = setInterval(() => {
   chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
     if (response && response.timerState) {
-      updateTimerDisplay(response.timerState.timeLeft);
+      currentSeconds = response.timerState.timeLeft;
+      updateTimerDisplay(currentSeconds);
       updateFocusControls(response.timerState.isRunning);
     }
   });
 }, 1000);
 
 document.getElementById("start-focus").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "START_FOCUS" });
+  chrome.runtime.sendMessage({ type: "START_FOCUS" }, (response) => {
+    if (response && response.timerState) {
+      currentSeconds = response.timerState.timeLeft;
+      updateTimerDisplay(currentSeconds);
+      updateFocusControls(response.timerState.isRunning);
+    }
+  });
 });
 
 document.getElementById("stop-focus").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "END_FOCUS" });
+  chrome.runtime.sendMessage({ type: "END_FOCUS" }, (response) => {
+    if (response && response.timerState) {
+      currentSeconds = response.timerState.timeLeft;
+      updateTimerDisplay(currentSeconds);
+      updateFocusControls(response.timerState.isRunning);
+    }
+  });
 });
 
 // Blocked sites management
@@ -188,12 +248,10 @@ function removeSite(site) {
 document.addEventListener("DOMContentLoaded", () => {
   fetchTasks();
   loadBlockedSites();
+  initializeTimer(); // Initialize timer state
+});
 
-  // Get initial timer state
-  chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
-    if (response && response.timerState) {
-      updateTimerDisplay(response.timerState.timeLeft);
-      updateFocusControls(response.timerState.isRunning);
-    }
-  });
+// Cleanup when popup closes
+window.addEventListener("unload", () => {
+  clearInterval(updateInterval);
 });
