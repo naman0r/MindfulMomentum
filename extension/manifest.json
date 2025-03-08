@@ -5,6 +5,8 @@
   "description": "Task management and focus mode extension for MindfulMomentum",
   "permissions": [
     "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
     "webRequest",
     "tabs",
     "alarms",
@@ -39,6 +41,15 @@
       "https://mindfulmomentum-frontend-drj7.vercel.app/*",
       "https://mindfulmomentum.vercel.app/*",
       "https://mindfulmomentum-frontend.vercel.app/*"
+    ]
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
     ]
   }
 }
