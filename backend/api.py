@@ -9,13 +9,13 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 api = Blueprint("api", __name__)
 
 # User Routes
-@api.route("/api/login", methods=["GET"]) # lowkey unprotected route, just helps me get the info of all users. 
+""" @api.route("/api/login", methods=["GET"]) # lowkey unprotected route, just helps me get the info of all users. 
 def get_users(): 
     try:
         response = supabase.from_("users").select("*").execute()
         return jsonify({"message": "Users fetched successfully", "users": response.data}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500 """
 
 
 
@@ -69,7 +69,7 @@ def login():
 
 
 # unprotected habits route (debugging purposes only, not for prod)
-@api.route("/api/get/habits/all", methods=["GET"])
+""" @api.route("/api/get/habits/all", methods=["GET"])
 def get_all_habits(): 
     try: 
     
@@ -78,7 +78,7 @@ def get_all_habits():
         return jsonify({"all habits" : journals}), 200
     
     except Exception as e: 
-        return jsonify({"error" : str(e)}), 500
+        return jsonify({"error" : str(e)}), 500 """
     
 
 
@@ -175,7 +175,7 @@ def delete_habit(id):
 
 
 # get ALL journals (unprotected route, for development purposes only )
-@api.route("/api/get/journals/all", methods=["GET"])
+""" @api.route("/api/get/journals/all", methods=["GET"])
 def get_all_entries(): 
     try: 
         
@@ -184,7 +184,7 @@ def get_all_entries():
         return jsonify({"all journals" : journals}), 200
         
     except Exception as e: 
-        return jsonify({"error" : str(e)}), 500
+        return jsonify({"error" : str(e)}), 500 """
 
 
 
@@ -298,7 +298,8 @@ def get_entry_by_id(id):
     
 # ================================ TASKS ROUTES =================================
 
-
+# removing uprotected route from prod
+""" 
 @api.route('/api/get/tasks/all', methods=["GET"])
 def get_all_tasks_unprotected(): 
     try: 
@@ -306,7 +307,7 @@ def get_all_tasks_unprotected():
         tasks  = response.data
         return jsonify({"tasks": tasks}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500 """
 
 
 
