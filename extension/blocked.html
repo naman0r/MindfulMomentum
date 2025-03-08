@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Site Blocked - Focus Mode</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f3f4f6;
+        color: #1f2937;
+      }
+      .container {
+        text-align: center;
+        padding: 2rem;
+        background-color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        max-width: 500px;
+      }
+      h1 {
+        color: #4f46e5;
+        margin-bottom: 1rem;
+      }
+      p {
+        color: #6b7280;
+        line-height: 1.5;
+      }
+      .timer {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #4f46e5;
+        margin: 1rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Site Blocked</h1>
+      <p>This site is currently blocked because you're in Focus Mode.</p>
+      <p>Stay focused on your tasks! You can do this! 💪</p>
+      <div id="timer" class="timer">25:00</div>
+      <p>Time remaining in your focus session</p>
+    </div>
+    <script>
+      // Update timer from background state
+      function updateTimer() {
+        chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
+          if (response && response.timerState) {
+            const minutes = Math.floor(response.timerState.timeLeft / 60);
+            const seconds = response.timerState.timeLeft % 60;
+            document.getElementById("timer").textContent = `${minutes
+              .toString()
+              .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+          }
+        });
+      }
+
+      // Update timer every second
+      updateTimer();
+      setInterval(updateTimer, 1000);
+    </script>
+  </body>
+</html>

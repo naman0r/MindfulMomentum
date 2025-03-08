@@ -4,6 +4,9 @@ import { auth, googleProvider } from "../config/firebase";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const EXTENSION_ID =
+  import.meta.env.VITE_EXTENSION_ID || "kieebkclddlihhbiaopfbpfgiondplmh";
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +31,40 @@ const Login = () => {
     }
   };
 
+  const sendTokenToExtension = async (token) => {
+    console.log("Attempting to send token to extension...");
+    console.log("Extension ID being used:", EXTENSION_ID);
+    if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+      console.log("Chrome runtime API is available");
+      try {
+        // Try sending to the extension
+        await chrome.runtime.sendMessage(EXTENSION_ID, {
+          type: "SAVE_TOKEN",
+          token: token,
+        });
+        console.log("Token sent to extension successfully");
+      } catch (err) {
+        // If there's an error, it might be because the extension isn't installed
+        console.error("Extension communication error:", err);
+        console.log("Error details:", {
+          message: err.message,
+          name: err.name,
+          stack: err.stack,
+        });
+      }
+    } else {
+      console.log("Chrome runtime API is not available", {
+        windowChrome: !!window.chrome,
+        chromeRuntime: !!(window.chrome && chrome.runtime),
+        sendMessage: !!(
+          window.chrome &&
+          chrome.runtime &&
+          chrome.runtime.sendMessage
+        ),
+      });
+    }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -40,8 +77,11 @@ const Login = () => {
         profile_picture: result.user.photoURL,
       };
 
+      console.log("Sending user data to backend:", userData);
+      console.log("Backend URL:", import.meta.env.VITE_BACKEND_URL);
+
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/login`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/login`,
         {
           method: "POST",
           headers: {
@@ -51,32 +91,44 @@ const Login = () => {
         }
       );
 
+      console.log("Backend response status:", response.status);
+
+      // Clone the response for debugging
+      const responseClone = response.clone();
+      const rawResponse = await responseClone.text();
+      console.log("Raw response:", rawResponse);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to store user data");
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error;
+        } catch (e) {
+          errorMessage = `HTTP error! status: ${response.status}`;
+        }
+        throw new Error(errorMessage || "Failed to store user data");
       }
 
-      const data = await response.json();
-      console.log("User data stored successfully:", data);
+      let data;
+      try {
+        data = JSON.parse(rawResponse);
+        console.log("Parsed response data:", data);
+      } catch (e) {
+        console.error("Error parsing response:", e);
+        throw new Error("Invalid response from server");
+      }
+
+      if (!data.access_token) {
+        throw new Error("No access token received from server");
+      }
+
+      console.log("Login successful, received access token");
 
       // Store token in localStorage for web app
       localStorage.setItem("token", data.access_token);
 
-      // Send message to extension if it exists
-      if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
-        try {
-          await chrome.runtime.sendMessage(
-            "kieebkclddlihhbiaopfbpfgiondplmh", //change extension id HERE for prod
-            {
-              type: "SAVE_TOKEN",
-              token: data.access_token,
-            }
-          );
-          console.log("Token sent to extension");
-        } catch (err) {
-          console.log("Extension not found or not accessible");
-        }
-      }
+      // Try to send token to extension
+      await sendTokenToExtension(data.access_token);
 
       navigate("/profile");
     } catch (error) {

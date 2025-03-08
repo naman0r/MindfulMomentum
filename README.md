@@ -143,3 +143,14 @@ Extension:
 
 - Chrome APIs
 - HTML/CSS/JS
+
+## to deploy:
+
+### backend:
+
+railway up
+
+### frontend
+
+vercel
+vercel --prod

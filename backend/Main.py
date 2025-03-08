@@ -3,6 +3,7 @@
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from config import supabase
+from datetime import timedelta
 from api import api
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
@@ -20,7 +21,7 @@ app = Flask(__name__)
 # Configure CORS
 CORS(app, 
      resources={r"/*": {
-         "origins": ["http://localhost:5173", "http://localhost:3000", "https://mindfulmomentum.vercel.app"],
+         "origins": ["http://localhost:5173", "http://localhost:3000", "https://mindfulmomentum.vercel.app", "https://mindfulmomentum-frontend-drj7puuih-namans-projects-8a5a8d52.vercel.app", "https://mindfulmomentum-frontend.vercel.app"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
          "allow_headers": ["Content-Type", "Authorization"],
          "supports_credentials": True
@@ -28,7 +29,7 @@ CORS(app,
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")  # Load JWT Secret Key from .env
 # app.config["PREFERRED_URL_SCHEME"] = "https" # ???? does this actualy work
-
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2) # jwt token set to expire every 2 hours. 
 
 # Talisman(app)
 

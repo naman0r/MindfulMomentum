@@ -22,7 +22,7 @@ function Journal() {
     const fetchJournals = async () => {
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
+          `${import.meta.env.VITE_BACKEND_URL}/api/get/journals`,
           {
             method: "GET",
             headers: {
@@ -61,7 +61,7 @@ function Journal() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/add/journal`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/add/journal`,
         {
           method: "POST",
           headers: {
@@ -79,7 +79,7 @@ function Journal() {
       }
 
       const updatedResponse = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/get/journals`,
         {
           method: "GET",
           headers: {
@@ -105,7 +105,7 @@ function Journal() {
   const handleDeleteEntry = async (entryId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/delete/journal/${entryId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/delete/journal/${entryId}`,
         {
           method: "DELETE",
           headers: {

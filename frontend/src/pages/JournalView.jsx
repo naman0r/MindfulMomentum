@@ -16,7 +16,7 @@ function JournalView() {
 
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/get/journal/${id}`,
+          `${import.meta.env.VITE_BACKEND_URL}/api/get/journal/${id}`,
           {
             method: "GET",
             headers: {
@@ -46,7 +46,7 @@ function JournalView() {
   const handleDeleteEntry = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/delete/journal/${id}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/delete/journal/${id}`,
         {
           method: "DELETE",
           headers: {

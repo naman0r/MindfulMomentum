@@ -32,12 +32,15 @@ async function fetchTasks() {
         return;
       }
 
-      const response = await fetch("http://localhost:8000/api/get/tasks", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        "https://mindfulmomentum-backend-take2-production.up.railway.app/api/get/tasks",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       console.log("Response status:", response.status); // Debug log
 
@@ -82,7 +85,7 @@ async function toggleTask(taskId) {
       if (!token) throw new Error("No token found");
 
       const response = await fetch(
-        `http://localhost:8000/api/toggle/task/${taskId}`,
+        `https://mindfulmomentum-backend-take2-production.up.railway.app/api/toggle/task/${taskId}`,
         {
           method: "PATCH",
           headers: {
@@ -100,48 +103,39 @@ async function toggleTask(taskId) {
   }
 }
 
-// Focus mode
+// Focus mode and Timer
 let focusTimer;
-let timeLeft = 25 * 60; // 25 minutes in seconds
 
-function updateTimer() {
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
+function updateTimerDisplay(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
   document.getElementById("timer").textContent = `${minutes
     .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-document.getElementById("start-focus").addEventListener("click", () => {
-  document.getElementById("start-focus").disabled = true;
-  document.getElementById("stop-focus").disabled = false;
+function updateFocusControls(isRunning) {
+  document.getElementById("start-focus").disabled = isRunning;
+  document.getElementById("stop-focus").disabled = !isRunning;
+}
 
-  chrome.runtime.sendMessage({ type: "START_FOCUS" });
-
-  focusTimer = setInterval(() => {
-    timeLeft--;
-    updateTimer();
-
-    if (timeLeft <= 0) {
-      clearInterval(focusTimer);
-      chrome.runtime.sendMessage({ type: "END_FOCUS" });
-      resetTimer();
+// Update timer display every second
+setInterval(() => {
+  chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
+    if (response && response.timerState) {
+      updateTimerDisplay(response.timerState.timeLeft);
+      updateFocusControls(response.timerState.isRunning);
     }
-  }, 1000);
+  });
+}, 1000);
+
+document.getElementById("start-focus").addEventListener("click", () => {
+  chrome.runtime.sendMessage({ type: "START_FOCUS" });
 });
 
 document.getElementById("stop-focus").addEventListener("click", () => {
-  clearInterval(focusTimer);
   chrome.runtime.sendMessage({ type: "END_FOCUS" });
-  resetTimer();
 });
-
-function resetTimer() {
-  timeLeft = 25 * 60;
-  updateTimer();
-  document.getElementById("start-focus").disabled = false;
-  document.getElementById("stop-focus").disabled = true;
-}
 
 // Blocked sites management
 let blockedSites = [];
@@ -194,5 +188,12 @@ function removeSite(site) {
 document.addEventListener("DOMContentLoaded", () => {
   fetchTasks();
   loadBlockedSites();
-  updateTimer();
+
+  // Get initial timer state
+  chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
+    if (response && response.timerState) {
+      updateTimerDisplay(response.timerState.timeLeft);
+      updateFocusControls(response.timerState.isRunning);
+    }
+  });
 });

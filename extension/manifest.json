@@ -8,10 +8,17 @@
     "webRequest",
     "tabs",
     "alarms",
+    "nativeMessaging",
     "notifications",
     "webRequestBlocking"
   ],
-  "host_permissions": ["http://localhost:8000/*", "<all_urls>"],
+  "host_permissions": [
+    "https://mindfulmomentum-backend-take2-production.up.railway.app/*",
+    "https://mindfulmomentum-frontend.vercel.app/*",
+    "https://mindfulmomentum-frontend-i2a95wb41-namans-projects-8a5a8d52.vercel.app/*",
+    "https://mindfulmomentum-frontend-namans-projects-8a5a8d52.vercel.app/*",
+    "<all_urls>"
+  ],
   "action": {
     "default_popup": "popup/popup.html"
   },
@@ -25,6 +32,11 @@
     }
   ],
   "externally_connectable": {
-    "matches": ["http://localhost:5173/*"]
+    "matches": [
+      "http://localhost:5173/*",
+      "https://mindfulmomentum-frontend-drj7.vercel.app/*",
+      "https://mindfulmomentum.vercel.app/*",
+      "https://mindfulmomentum-frontend.vercel.app/*"
+    ]
   }
 }

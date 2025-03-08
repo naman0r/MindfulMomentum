@@ -21,7 +21,7 @@ function Productivity() {
     const fetchTasks = async () => {
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/get/tasks`,
+          `${import.meta.env.VITE_BACKEND_URL}/api/get/tasks`,
           {
             method: "GET",
             headers: {
@@ -51,7 +51,7 @@ function Productivity() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/add/task`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/add/task`,
         {
           method: "POST",
           headers: {
@@ -68,7 +68,7 @@ function Productivity() {
       }
 
       const updatedTasks = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/get/tasks`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/get/tasks`,
         {
           method: "GET",
           headers: {
@@ -94,7 +94,7 @@ function Productivity() {
   const handleDeleteTask = async (taskId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/delete/task/${taskId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/delete/task/${taskId}`,
         {
           method: "DELETE",
           headers: {
@@ -118,7 +118,7 @@ function Productivity() {
   const handleToggleTask = async (taskId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/toggle/task/${taskId}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/toggle/task/${taskId}`,
         {
           method: "PATCH",
           headers: {

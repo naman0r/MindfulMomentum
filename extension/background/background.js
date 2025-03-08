@@ -54,11 +54,17 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.runtime.onMessageExternal.addListener(
   (request, sender, sendResponse) => {
+    console.log("Received external message:", request);
     if (request.type === "SAVE_TOKEN") {
-      chrome.storage.sync.set({ token: request.token }, () => {
-        console.log("Token saved in extension storage");
-        sendResponse({ success: true });
-      });
+      try {
+        chrome.storage.sync.set({ token: request.token }, () => {
+          console.log("Token saved in extension storage");
+          sendResponse({ success: true });
+        });
+      } catch (error) {
+        console.error("Error saving token:", error);
+        sendResponse({ success: false, error: error.message });
+      }
     }
     return true; // Required for async response
   }

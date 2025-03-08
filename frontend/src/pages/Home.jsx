@@ -17,7 +17,7 @@ function Home() {
       if (user?.uid) {
         try {
           const response = await fetch(
-            `${import.meta.env.VITE_BACKEND_URL}/get/habits`,
+            `${import.meta.env.VITE_BACKEND_URL}/api/get/habits`,
             {
               method: "GET",
               headers: {
@@ -42,7 +42,7 @@ function Home() {
       if (user?.uid) {
         try {
           const response = await fetch(
-            `${import.meta.env.VITE_BACKEND_URL}/get/journals`,
+            `${import.meta.env.VITE_BACKEND_URL}/api/get/journals`,
             {
               method: "GET",
               headers: {
