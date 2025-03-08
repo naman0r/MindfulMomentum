@@ -10,7 +10,9 @@
     "alarms",
     "nativeMessaging",
     "notifications",
-    "webRequestBlocking"
+    "webRequestBlocking",
+    "webNavigation",
+    "activeTab"
   ],
   "host_permissions": [
     "https://mindfulmomentum-backend-take2-production.up.railway.app/*",

@@ -198,6 +198,7 @@ document.getElementById("stop-focus").addEventListener("click", () => {
 });
 
 // Blocked sites management
+// popup.js (corrected blocked sites management)
 let blockedSites = [];
 
 function loadBlockedSites() {
@@ -218,7 +219,6 @@ function renderBlockedSites() {
       <span>${site}</span>
       <button class="remove-site">Remove</button>
     `;
-
     siteElement
       .querySelector(".remove-site")
       .addEventListener("click", () => removeSite(site));
@@ -231,27 +231,22 @@ document.getElementById("add-site").addEventListener("click", () => {
   const site = input.value.trim();
 
   if (site && !blockedSites.includes(site)) {
-    blockedSites.push(site);
-    chrome.storage.sync.set({ blockedSites });
-    renderBlockedSites();
-    input.value = "";
+    chrome.runtime.sendMessage({ type: "ADD_BLOCKED_SITE", site }, () => {
+      loadBlockedSites();
+      input.value = "";
+    });
   }
 });
 
 function removeSite(site) {
-  blockedSites = blockedSites.filter((s) => s !== site);
-  chrome.storage.sync.set({ blockedSites });
-  renderBlockedSites();
+  chrome.runtime.sendMessage({ type: "REMOVE_BLOCKED_SITE", site }, () => {
+    loadBlockedSites();
+  });
 }
 
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   fetchTasks();
   loadBlockedSites();
-  initializeTimer(); // Initialize timer state
-});
-
-// Cleanup when popup closes
-window.addEventListener("unload", () => {
-  clearInterval(updateInterval);
+  initializeTimer();
 });

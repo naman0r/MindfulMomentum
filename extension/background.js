@@ -14,6 +14,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // Handle messages from popup
+// background.js (updated message handler)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.type) {
     case "START_FOCUS":
@@ -25,6 +26,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       focusMode = false;
       sendResponse({ success: true });
       break;
+
+    case "ADD_BLOCKED_SITE":
+      if (!blockedSites.includes(request.site)) {
+        blockedSites.push(request.site);
+        chrome.storage.sync.set({ blockedSites });
+      }
+      sendResponse({ success: true });
+      break;
+
+    case "REMOVE_BLOCKED_SITE":
+      blockedSites = blockedSites.filter((site) => site !== request.site);
+      chrome.storage.sync.set({ blockedSites });
+      sendResponse({ success: true });
+      break;
+
+    case "GET_BLOCKED_SITES":
+      sendResponse({ sites: blockedSites });
+      break;
   }
   return true;
 });
@@ -35,7 +54,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     if (!focusMode) return { cancel: false };
     const url = new URL(details.url);
     if (blockedSites.some((site) => url.hostname.includes(site))) {
-      return { redirectUrl: chrome.runtime.getURL("blocked.html") };
+      return { redirectUrl: "https://mindfulmomentum-frontend.vercel.app/" };
     }
     return { cancel: false };
   },
