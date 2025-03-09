@@ -155,3 +155,27 @@ button:disabled {
   padding: 4px 8px;
   font-size: 12px;
 }
+
+#start-focus {
+  background-color: red;
+}
+
+#stop-focus {
+  background-color: gray;
+}
+
+#start-focus:disabled {
+  background-color: gray;
+}
+
+#stop-focus:disabled {
+  background-color: gray;
+}
+
+#stop-focus:enabled {
+  background-color: red;
+}
+
+#start-focus:enabled {
+  background-color: red;
+}

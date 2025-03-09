@@ -24,7 +24,7 @@ const TopNav = () => {
             Productivity
           </Link>
           <Link to="/settings" className="hover:text-gray-200">
-            Settings
+            FAQ
           </Link>
         </div>
 

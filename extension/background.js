@@ -1,5 +1,7 @@
 let focusMode = false;
 let blockedSites = [];
+let currentSeconds = 25 * 60; // Default 25 minutes in seconds
+let timerInterval = null;
 
 chrome.storage.sync.get(["blockedSites"], (result) => {
   blockedSites = result.blockedSites || [];
@@ -29,10 +31,37 @@ async function updateBlockingRules() {
   });
 }
 
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    if (currentSeconds > 0) {
+      currentSeconds--;
+    } else {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      focusMode = false;
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon48.png",
+        title: "Focus Session Complete",
+        message: "Great job! Your focus session is complete.",
+      });
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.type) {
     case "START_FOCUS":
       focusMode = true;
+      startTimer();
       updateBlockingRules();
       chrome.tabs.query({}, (tabs) =>
         tabs.forEach((tab) =>
@@ -42,11 +71,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })
         )
       );
-      sendResponse({ success: true });
+      sendResponse({
+        success: true,
+        timerState: { isRunning: focusMode, timeLeft: currentSeconds },
+      });
       break;
 
     case "END_FOCUS":
       focusMode = false;
+      stopTimer();
       updateBlockingRules();
       chrome.tabs.query({}, (tabs) =>
         tabs.forEach((tab) =>
@@ -56,7 +89,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })
         )
       );
-      sendResponse({ success: true });
+      sendResponse({
+        success: true,
+        timerState: { isRunning: focusMode, timeLeft: currentSeconds },
+      });
+      break;
+
+    case "UPDATE_TIMER_DURATION":
+      currentSeconds = request.duration;
+      sendResponse({
+        success: true,
+        timerState: { isRunning: focusMode, timeLeft: currentSeconds },
+      });
       break;
 
     case "ADD_BLOCKED_SITE":
@@ -77,12 +121,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ sites: blockedSites });
       break;
 
-    // 👇 ADD THIS HANDLER TO FIX THE ISSUE
     case "GET_STATE":
       sendResponse({
         timerState: {
           isRunning: focusMode,
-          timeLeft: currentSeconds || 1500, // Default 25 minutes if undefined
+          timeLeft: currentSeconds,
         },
       });
       break;
