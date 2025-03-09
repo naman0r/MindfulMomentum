@@ -1,4 +1,4 @@
-# MindfulMomentul
+# MindfulMomentum
 
 - deployed product: https://mindfulmomentum-frontend.vercel.app/
 - chrome web store product: pending review.
