@@ -77,10 +77,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ sites: blockedSites });
       break;
 
+    // 👇 ADD THIS HANDLER TO FIX THE ISSUE
+    case "GET_STATE":
+      sendResponse({
+        timerState: {
+          isRunning: focusMode,
+          timeLeft: currentSeconds || 1500, // Default 25 minutes if undefined
+        },
+      });
+      break;
+
     default:
       sendResponse({});
       break;
   }
+
+  // Important for async responses
+  return true;
 });
 
 // Handle external messages (from the web app)
