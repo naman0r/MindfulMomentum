@@ -16,6 +16,7 @@ import Profile from "./pages/Profile.jsx";
 import Error404 from "./pages/Error404.jsx";
 import Settings from "./pages/Settings.jsx";
 import JournalView from "./pages/JournalView.jsx";
+import Blocked from "./pages/Blocked.jsx";
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/app", element: <App /> },
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
   { path: "/*", element: <Error404 /> },
   { path: "/settings", element: <Settings /> },
   { path: "/journal/:id", element: <JournalView /> },
+  { path: "/blocked", element: <Blocked /> },
 ]);
 
 createRoot(document.getElementById("root")).render(
