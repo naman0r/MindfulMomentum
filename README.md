@@ -1,5 +1,8 @@
 # MindfulMomentul
 
+- deployed product: https://mindfulmomentum-frontend.vercel.app/
+- chrome web store product: pending review.
+
 ## tech stack
 
 - Frontend: React.js, Tailwind.css, PrimeReact, React-router-dom, vite
