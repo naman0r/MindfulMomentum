@@ -5,6 +5,9 @@ body {
   padding: 16px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;
+  background-color: rgba(0, 0, 0, 0.057);
+  border: 5px dashed rgba(75, 68, 69, 0.76);
+  border-radius: 10px;
 }
 
 .container {
@@ -19,7 +22,7 @@ body {
 
 .tab-btn {
   padding: 8px 16px;
-  border: none;
+  border: 2px solid black;
   background: none;
   cursor: pointer;
   font-size: 14px;
@@ -29,6 +32,7 @@ body {
 .tab-btn.active {
   color: #4f46e5;
   border-bottom: 2px solid #4f46e5;
+  background-color: rgba(255, 0, 0, 0.238);
 }
 
 .tab-content {
