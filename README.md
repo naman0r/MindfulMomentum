@@ -1,7 +1,8 @@
 # MindfulMomentum
 
 - deployed product: https://mindfulmomentum-frontend.vercel.app/
-- chrome web store product: pending review.
+- chrome web store extension: https://chromewebstore.google.com/detail/mindfulmomentum/fhnmaioanoafpmkikblmoahbnlnboikk
+- CHECK IT OUTTTT!!!!!
 
 ## tech stack
 
