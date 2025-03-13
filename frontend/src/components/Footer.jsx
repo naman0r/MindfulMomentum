@@ -16,8 +16,12 @@ const Footer = () => {
             <a href="#" className="hover:text-white transition-colors">
               Terms
             </a>
-            <a href="#" className="hover:text-white transition-colors">
-              Contact
+            <a
+              href="https://chromewebstore.google.com/detail/mindfulmomentum/fhnmaioanoafpmkikblmoahbnlnboikk"
+              target="_blank"
+              className="hover:text-white transition-colors text-red-600"
+            >
+              Download the extension!
             </a>
           </div>
         </div>

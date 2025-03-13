@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const EXTENSION_ID =
-  import.meta.env.VITE_EXTENSION_ID || "kieebkclddlihhbiaopfbpfgiondplmh";
+  import.meta.env.VITE_EXTENSION_ID || "fhnmaioanoafpmkikblmoahbnlnboikk";
 
 const Login = () => {
   const [email, setEmail] = useState("");

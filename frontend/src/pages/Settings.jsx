@@ -9,12 +9,24 @@ const Settings = () => {
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <h1 className="text-2xl font-bold text-gray-900">FAQ</h1>
+
+          <li>
+            <strong>Why are my habits/journals not loading?:</strong> The
+            Tokenization system used logs you out of the server every two hours
+            even if you are logged in through the web app. please log out and
+            log back in.
+          </li>
+
+          <br />
+          <br />
           <p>
             Welcome to MindfulMomentum! Our app is designed to help you stay
             focused and manage your tasks effectively. Here's how it works:
           </p>
 
           <ul className="list-disc pl-5">
+            <br></br>
+
             <li>
               <strong>Task Management:</strong> Easily add, view, and manage
               your tasks to stay organized and productive.
