@@ -68,7 +68,7 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      console.log("Google sign in successful:", result);
+      // console.log("Google sign in successful:", result);
 
       const userData = {
         google_id: result.user.uid,
@@ -77,8 +77,8 @@ const Login = () => {
         profile_picture: result.user.photoURL,
       };
 
-      console.log("Sending user data to backend:", userData);
-      console.log("Backend URL:", import.meta.env.VITE_BACKEND_URL);
+      // console.log("Sending user data to backend:", userData);
+      // console.log("Backend URL:", import.meta.env.VITE_BACKEND_URL);
 
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/login`,
@@ -96,7 +96,7 @@ const Login = () => {
       // Clone the response for debugging
       const responseClone = response.clone();
       const rawResponse = await responseClone.text();
-      console.log("Raw response:", rawResponse);
+      // console.log("Raw response:", rawResponse);
 
       if (!response.ok) {
         let errorMessage;
