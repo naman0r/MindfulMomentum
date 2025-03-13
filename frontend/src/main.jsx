@@ -14,7 +14,7 @@ import Journal from "./pages/Journal.jsx";
 import Productivity from "./pages/Productivity.jsx";
 import Profile from "./pages/Profile.jsx";
 import Error404 from "./pages/Error404.jsx";
-import Settings from "./pages/Settings.jsx";
+import Settings from "./pages/Settings.jsx"; // this is the faq page, need to rename
 import JournalView from "./pages/JournalView.jsx";
 import Blocked from "./pages/Blocked.jsx";
 const router = createBrowserRouter([
@@ -26,7 +26,7 @@ const router = createBrowserRouter([
   { path: "/productivity", element: <Productivity /> },
   { path: "/profile", element: <Profile /> },
   { path: "/*", element: <Error404 /> },
-  { path: "/settings", element: <Settings /> },
+  { path: "/faq", element: <Settings /> },
   { path: "/journal/:id", element: <JournalView /> },
   { path: "/blocked", element: <Blocked /> },
 ]);
