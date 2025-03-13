@@ -112,7 +112,7 @@ const Login = () => {
       let data;
       try {
         data = JSON.parse(rawResponse);
-        console.log("Parsed response data:", data);
+        //console.log("Parsed response data:", data);
       } catch (e) {
         console.error("Error parsing response:", e);
         throw new Error("Invalid response from server");
