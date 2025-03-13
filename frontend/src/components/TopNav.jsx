@@ -23,7 +23,7 @@ const TopNav = () => {
           <Link to="/productivity" className="hover:text-gray-200">
             Productivity
           </Link>
-          <Link to="/settings" className="hover:text-gray-200">
+          <Link to="/faq" className="hover:text-gray-200">
             FAQ
           </Link>
         </div>
