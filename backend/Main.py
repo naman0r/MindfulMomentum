@@ -29,7 +29,7 @@ CORS(app,
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")  # Load JWT Secret Key from .env
 # app.config["PREFERRED_URL_SCHEME"] = "https" # ???? does this actualy work
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2) # jwt token set to expire every 2 hours. 
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=30) # Set token to expire after 30 days instead of 2 hours. 
 
 # Talisman(app)
 
