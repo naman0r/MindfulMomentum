@@ -1,5 +1,17 @@
 # MindfulMomentul
 
+## next steps (updated april 1st 2025):
+
+- fully implement the habits functionality (complete, track over weeks, implement streaks, etc.)
+- update domain name (mindfulmomentum.vercel.app)
+- google calendar api
+- figure out JWT thing (keep it from timing out, stays for at least like a week or something)
+- hashing journal entries and unhashing when displayed
+- UPDATE, DELETE, POST, GET (need to implement update and delete for habits and journals. )
+- add alerts and ask user if they are sure if they want to delete a task or a journal or something.
+
+##
+
 - deployed product: https://mindfulmomentum-frontend.vercel.app/
 - chrome web store product: pending review.
 

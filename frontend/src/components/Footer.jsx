@@ -23,6 +23,7 @@ const Footer = () => {
             >
               Download the extension!
             </a>
+            <p>PWA version</p>
           </div>
         </div>
       </footer>
