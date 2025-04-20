@@ -4,9 +4,47 @@ from flask import Blueprint, request, jsonify, Flask, make_response
 from config import supabase
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+import os
+from cryptography.fernet import Fernet, InvalidToken
 
 
 api = Blueprint("api", __name__)
+
+# --- Encryption Setup ---
+# Load the encryption key from environment variables
+JOURNAL_ENCRYPTION_KEY = os.getenv("JOURNAL_ENCRYPTION_KEY")
+if not JOURNAL_ENCRYPTION_KEY:
+    print("WARNING: JOURNAL_ENCRYPTION_KEY environment variable not set. Journal encryption disabled.")
+    fernet = None
+else:
+    try:
+        fernet = Fernet(JOURNAL_ENCRYPTION_KEY.encode())
+    except ValueError as e:
+        print(f"ERROR: Invalid JOURNAL_ENCRYPTION_KEY format. Please generate a valid Fernet key. {e}")
+        fernet = None
+
+def encrypt_content(content):
+    if fernet and content:
+        return fernet.encrypt(content.encode('utf-8')).decode('utf-8')
+    return content # Return original content if encryption is disabled or content is empty
+
+def decrypt_content(encrypted_content):
+    if fernet and encrypted_content:
+        try:
+            # Ensure it's bytes before decrypting
+            if isinstance(encrypted_content, str):
+                encrypted_content_bytes = encrypted_content.encode('utf-8')
+            else:
+                encrypted_content_bytes = encrypted_content # Assume it's already bytes if not string
+            
+            decrypted_bytes = fernet.decrypt(encrypted_content_bytes)
+            return decrypted_bytes.decode('utf-8')
+        except (InvalidToken, TypeError, ValueError) as e:
+            print(f"Decryption Error: {e}. Returning placeholder.")
+            return "[Content could not be decrypted]"
+    return encrypted_content # Return original (potentially encrypted) content if decryption is disabled or content is empty
+# --- End Encryption Setup ---
+
 
 # User Routes
 """ @api.route("/api/login", methods=["GET"]) # lowkey unprotected route, just helps me get the info of all users. 
@@ -192,15 +230,20 @@ def get_all_entries():
 @api.route("/api/get/journals", methods = ["GET"])
 @jwt_required()
 def get_users_journals():
-    
     try: 
-        
         google_id = get_jwt_identity()
-        response = supabase.from_("journals").select("*").eq("google_id", google_id).execute()
+        response = supabase.from_("journals").select("*").eq("google_id", google_id).order('created_at', desc=True).execute()
         journals = response.data
+
+        # Decrypt content for each journal
+        if journals:
+            for journal in journals:
+                journal['content'] = decrypt_content(journal.get('content'))
+
         return jsonify({"journals": journals}), 200
     except Exception as e: 
-        return jsonify({"error": e}), 500
+        print(f"Error in get_users_journals: {e}") # Added logging
+        return jsonify({"error": str(e)}), 500
     
     
     
@@ -212,12 +255,8 @@ def add_journal_entry():
         google_id = get_jwt_identity()
         data = request.json
         
-        
-       
-        
-        
         title = data.get("title")
-        content = data.get("content")
+        content = data.get("content") # Plaintext content from request
         mood = data.get("mood", "neutral")
         tags = data.get("tags", [])
         attachments = data.get("attachments", [])
@@ -226,10 +265,13 @@ def add_journal_entry():
         if not title or not content:
             return jsonify({"error": "Missing required fields"}), 400
 
+        # Encrypt the content before storing
+        encrypted_content = encrypt_content(content)
+
         new_entry = {
             "google_id": google_id,
             "title": title,
-            "content": content,
+            "content": encrypted_content, # Store encrypted content
             "mood": mood,
             "tags": tags,
             "attachments": attachments,
@@ -239,9 +281,15 @@ def add_journal_entry():
         }
 
         response = supabase.from_("journals").insert(new_entry).execute()
+        
+        # Decrypt content before sending back in response (optional, but good practice)
+        if response.data:
+             response.data[0]['content'] = decrypt_content(response.data[0].get('content'))
+             
         return jsonify({"message": "Journal entry added successfully", "journal": response.data}), 201
 
     except Exception as e:
+        print(f"Error in add_journal_entry: {e}") # Added logging
         return jsonify({"error": str(e)}), 500
 
 
@@ -251,26 +299,27 @@ def delete_entry(id):
     try: 
         google_id = get_jwt_identity()
 
-        #  Step 1: Fetch journal entry
-        response = supabase.from_("journals").select("*").eq("id", id).execute()
-        journal_entry = response.data
+        #  Step 1: Fetch journal entry to verify ownership
+        response = supabase.from_("journals").select("google_id").eq("id", id).execute()
+        journal_entry_data = response.data
 
-        if not journal_entry:
+        if not journal_entry_data:
             return jsonify({"error": "Journal entry not found"}), 404
 
-        if journal_entry[0]["google_id"] != google_id:
+        if journal_entry_data[0]["google_id"] != google_id:
             return jsonify({"error": "Unauthorized: You cannot delete this journal entry"}), 403
 
         # Step 2: Delete the journal entry
         delete_response = supabase.from_("journals").delete().eq("id", id).execute()
 
-        # Ensure deletion was successful
-        if delete_response.data is None:  # Supabase returns None if deletion fails
-            return jsonify({"error": "Failed to delete journal entry"}), 500
+        # Check if deletion might have failed (optional check, depends on supabase-py behavior)
+        # if not delete_response.data and delete_response.error: # Adjust based on actual response
+        #     return jsonify({"error": f"Failed to delete journal entry: {delete_response.error.message}"}), 500
 
         return jsonify({"message": "Journal entry deleted successfully", "deleted_id": id}), 200
 
     except Exception as e: 
+        print(f"Error in delete_entry: {e}") # Added logging
         return jsonify({"error": str(e)}), 500
 
         
@@ -280,17 +329,23 @@ def get_entry_by_id(id):
     try: 
         google_id = get_jwt_identity()
         response = supabase.from_("journals").select("*").eq("id", id).execute()
-        journal_entry = response.data
+        journal_entry_list = response.data # Renamed to avoid confusion
 
-        if not journal_entry:
+        if not journal_entry_list:
             return jsonify({"error": "Journal entry not found"}), 404
+            
+        journal_entry = journal_entry_list[0] # Get the dictionary
 
-        if journal_entry[0]["google_id"] != google_id:
-            return jsonify({"error": "Unauthorized: You cannot view this journal entry! fraud!"}), 403
+        if journal_entry["google_id"] != google_id:
+            return jsonify({"error": "Unauthorized: You cannot view this journal entry!"}), 403
         
-        return jsonify({"journal" : journal_entry[0] }), 200
+        # Decrypt the content before returning
+        journal_entry['content'] = decrypt_content(journal_entry.get('content'))
+        
+        return jsonify({"journal" : journal_entry }), 200
         
     except Exception as e:
+        print(f"Error in get_entry_by_id: {e}") # Added logging
         return jsonify({"error": str(e)}), 500
     
     

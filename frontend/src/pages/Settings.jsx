@@ -10,6 +10,18 @@ const Settings = () => {
         <div className="px-4 py-6 sm:px-0">
           <h1 className="text-2xl font-bold text-gray-900">FAQ</h1>
 
+          <ul>
+            Latest Updates:
+            <li>
+              - added end to end encryption for journals. No one can hack your
+              journal entries, and admins cannot view your journals.{" "}
+            </li>
+            <li>
+              - added a new feature to the journal page. you can disable or
+              enable preview mode.
+            </li>
+          </ul>
+
           <li>
             <strong>Why are my habits/journals not loading?:</strong> The
             Tokenization system used logs you out of the server every two hours

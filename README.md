@@ -2,6 +2,8 @@
 
 ## next steps (updated april 1st 2025):
 
+- prompt of the day implementation in the journalling thing.
+- google calendar API integration for tasks.
 - fully implement the habits functionality (complete, track over weeks, implement streaks, etc.)
 - update domain name (mindfulmomentum.vercel.app)
 - google calendar api

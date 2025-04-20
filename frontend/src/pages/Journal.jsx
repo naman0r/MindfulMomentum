@@ -8,6 +8,7 @@ function Journal() {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [newEntry, setNewEntry] = useState({
     title: "",
     content: "",
@@ -103,31 +104,33 @@ function Journal() {
   };
 
   const handleDeleteEntry = async (entryId) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/delete/journal/${entryId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+    if (window.confirm("Are you sure you want to delete this journal entry?")) {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/delete/journal/${entryId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error deleting journal entry:", errorData);
+          return;
         }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error deleting journal entry:", errorData);
-        return;
+        setEntries((prevEntries) =>
+          prevEntries.filter((entry) => entry.id !== entryId)
+        );
+
+        console.log(`Deleted entry ${entryId} successfully`);
+      } catch (error) {
+        console.error("Error deleting journal entry:", error);
       }
-
-      setEntries((prevEntries) =>
-        prevEntries.filter((entry) => entry.id !== entryId)
-      );
-
-      console.log(`Deleted entry ${entryId} successfully`);
-    } catch (error) {
-      console.error("Error deleting journal entry:", error);
     }
   };
 
@@ -137,7 +140,24 @@ function Journal() {
       <div className="max-w-6xl mx-auto py-6">
         <div className="border-4 border-dashed border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">My Journal</h1>
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-gray-900">My Journals</h1>
+              <div className="flex items-center">
+                <input
+                  id="preview-toggle"
+                  type="checkbox"
+                  checked={showPreview}
+                  onChange={() => setShowPreview(!showPreview)}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mr-2"
+                />
+                <label
+                  htmlFor="preview-toggle"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Show Preview
+                </label>
+              </div>
+            </div>
             <button
               onClick={() => setShowForm(!showForm)}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
@@ -218,16 +238,20 @@ function Journal() {
                         {entry.title}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        {entry.created_at.split("T")[0]}
+                        {entry.created_at?.split("T")[0]}
                       </p>
                     </div>
                     <span className="px-2 py-1 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">
                       {entry.mood}
                     </span>
                   </div>
-                  <p className="mt-2 text-gray-600 line-clamp-2">
-                    {entry.content}
-                  </p>
+
+                  {showPreview && (
+                    <p className="mt-2 text-gray-600 line-clamp-2">
+                      {entry.content}
+                    </p>
+                  )}
+
                   <div className="mt-4 flex justify-end space-x-2">
                     <Link
                       to={`/journal/${entry.id}`}
