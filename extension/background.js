@@ -20,7 +20,7 @@ async function updateBlockingRules() {
     priority: 1,
     action: {
       type: "redirect",
-      redirect: { url: "https://mindfulmomentum-frontend.vercel.app/blocked/" },
+      redirect: { url: "https://mindfulmomentum.vercel.app/blocked/" },
     },
     condition: { urlFilter: `*${site}*`, resourceTypes: ["main_frame"] },
   }));
