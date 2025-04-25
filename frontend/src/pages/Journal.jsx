@@ -8,7 +8,7 @@ function Journal() {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const [newEntry, setNewEntry] = useState({
     title: "",
     content: "",
