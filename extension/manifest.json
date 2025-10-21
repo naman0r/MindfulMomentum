@@ -18,6 +18,7 @@
   ],
   "host_permissions": [
     "https://mindfulmomentum-backend-take2-production.up.railway.app/*",
+    "https://mindfulmomentum-backend.onrender.com/*",
     "https://mindfulmomentum-frontend.vercel.app/*",
     "https://mindfulmomentum-frontend-i2a95wb41-namans-projects-8a5a8d52.vercel.app/*",
     "https://mindfulmomentum-frontend-namans-projects-8a5a8d52.vercel.app/*",
