@@ -33,7 +33,7 @@ async function fetchTasks() {
       }
 
       const response = await fetch(
-        "https://mindfulmomentum-backend-take2-production.up.railway.app/api/get/tasks",
+        "https://mindfulmomentum-backend.onrender.com/api/get/tasks",
         {
           headers: {
             Authorization: `Bearer ${token}`,
