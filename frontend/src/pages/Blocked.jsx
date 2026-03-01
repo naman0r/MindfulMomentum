@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import TopNav from "../components/TopNav";
 import Footer from "../components/Footer.jsx";
+import { useTheme } from "../context/ThemeContext";
 
 const Blocked = () => {
+  const { theme } = useTheme();
   const [quote, setQuote] = useState("Stay focused on what matters most.");
   const quotes = [
     "Stay focused on what matters most.",
@@ -12,6 +14,7 @@ const Blocked = () => {
     "Embrace the power of now.",
     "Focus is your superpower.",
   ];
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -74,7 +77,11 @@ const Blocked = () => {
     <>
       <TopNav />
       <motion.div
-        className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex flex-col items-center justify-center p-4 text-white relative overflow-hidden"
+        className={`min-h-screen flex flex-col items-center justify-center p-4 text-white relative overflow-hidden ${
+          isDark
+            ? "bg-gradient-to-br from-slate-950 via-sky-950 to-indigo-950"
+            : "bg-gradient-to-br from-indigo-600 to-purple-700"
+        }`}
         variants={containerVariants}
         initial="initial"
         animate="animate"

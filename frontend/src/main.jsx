@@ -2,9 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-
-import TopNav from "./components/TopNav.jsx";
-import Footer from "./components/Footer.jsx";
+import { ThemeProvider } from "./context/ThemeContext";
+import "./styles/App.css";
 
 import App from "./App.jsx";
 import Home from "./pages/Home.jsx";
@@ -17,6 +16,7 @@ import Error404 from "./pages/Error404.jsx";
 import Settings from "./pages/Settings.jsx"; // this is the faq page, need to rename
 import JournalView from "./pages/JournalView.jsx";
 import Blocked from "./pages/Blocked.jsx";
+import Launchpad from "./pages/Launchpad.jsx";
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/app", element: <App /> },
@@ -24,6 +24,7 @@ const router = createBrowserRouter([
   { path: "/habits", element: <Habits /> },
   { path: "/journal", element: <Journal /> },
   { path: "/productivity", element: <Productivity /> },
+  { path: "/launchpad", element: <Launchpad /> },
   { path: "/profile", element: <Profile /> },
   { path: "/*", element: <Error404 /> },
   { path: "/faq", element: <Settings /> },
@@ -33,9 +34,11 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>
 );
 

@@ -4,13 +4,16 @@ import TopNav from "../components/TopNav";
 import Footer from "../components/Footer";
 
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 function Home() {
   const { user } = useAuth(); // global state management- at least my attempt at it.
+  const { theme } = useTheme();
   const [activeHabits, setActiveHabits] = useState(0);
   const [numJournalEntries, setNumEntries] = useState(0);
 
   const token = localStorage.getItem("token");
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const fetchHabits = async () => {
@@ -63,15 +66,23 @@ function Home() {
   }, [user?.uid]); // Re-run when user changes
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-gray-50"}`}>
       <TopNav />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="text-center py-12">
-          <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
+          <h1
+            className={`text-4xl font-bold sm:text-5xl md:text-6xl ${
+              isDark ? "text-slate-100" : "text-gray-900"
+            }`}
+          >
             Welcome back, {user?.displayName.split(" ")[0] || "Guest"}!
           </h1>
-          <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+          <p
+            className={`mt-3 max-w-md mx-auto text-base sm:text-lg md:mt-5 md:text-xl md:max-w-3xl ${
+              isDark ? "text-slate-400" : "text-gray-500"
+            }`}
+          >
             Track your habits, journal your thoughts, and boost your
             productivity all in one place.
           </p>
@@ -82,7 +93,11 @@ function Home() {
           {/* Habits Card */}
           <Link
             to="/habits"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-300"
+            className={`overflow-hidden rounded-lg transition-shadow duration-300 ${
+              isDark
+                ? "bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.4)] ring-1 ring-slate-800 hover:shadow-[0_22px_48px_rgba(2,6,23,0.5)]"
+                : "bg-white shadow hover:shadow-lg"
+            }`}
           >
             <div className="p-6">
               <div className="flex items-center">
@@ -102,10 +117,10 @@ function Home() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                     Habit Tracking
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className={`mt-1 text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                     Build and maintain positive habits with daily tracking and
                     streaks.
                   </p>
@@ -117,7 +132,11 @@ function Home() {
           {/* Journal Card */}
           <Link
             to="/journal"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-300"
+            className={`overflow-hidden rounded-lg transition-shadow duration-300 ${
+              isDark
+                ? "bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.4)] ring-1 ring-slate-800 hover:shadow-[0_22px_48px_rgba(2,6,23,0.5)]"
+                : "bg-white shadow hover:shadow-lg"
+            }`}
           >
             <div className="p-6">
               <div className="flex items-center">
@@ -137,10 +156,10 @@ function Home() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                     Journaling
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className={`mt-1 text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                     Reflect on your day and track your emotional well-being.
                   </p>
                 </div>
@@ -151,7 +170,11 @@ function Home() {
           {/* Productivity Card */}
           <Link
             to="/productivity"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-300"
+            className={`overflow-hidden rounded-lg transition-shadow duration-300 ${
+              isDark
+                ? "bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.4)] ring-1 ring-slate-800 hover:shadow-[0_22px_48px_rgba(2,6,23,0.5)]"
+                : "bg-white shadow hover:shadow-lg"
+            }`}
           >
             <div className="p-6">
               <div className="flex items-center">
@@ -171,10 +194,10 @@ function Home() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                     Productivity
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className={`mt-1 text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                     Stay focused and organized with task management and
                     productivity tracking.
                   </p>
@@ -186,7 +209,13 @@ function Home() {
 
         {/* Quick Stats */}
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div
+            className={`overflow-hidden rounded-lg ${
+              isDark
+                ? "bg-slate-900 shadow-[0_16px_36px_rgba(2,6,23,0.38)] ring-1 ring-slate-800"
+                : "bg-white shadow"
+            }`}
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -206,10 +235,10 @@ function Home() {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
+                    <dt className={`text-sm font-medium truncate ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                       Active Habits
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dd className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                       {activeHabits}
                     </dd>
                   </dl>
@@ -218,7 +247,13 @@ function Home() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div
+            className={`overflow-hidden rounded-lg ${
+              isDark
+                ? "bg-slate-900 shadow-[0_16px_36px_rgba(2,6,23,0.38)] ring-1 ring-slate-800"
+                : "bg-white shadow"
+            }`}
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -238,17 +273,23 @@ function Home() {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
+                    <dt className={`text-sm font-medium truncate ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                       Focus Time Today
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">0h</dd>
+                    <dd className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>0h</dd>
                   </dl>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div
+            className={`overflow-hidden rounded-lg ${
+              isDark
+                ? "bg-slate-900 shadow-[0_16px_36px_rgba(2,6,23,0.38)] ring-1 ring-slate-800"
+                : "bg-white shadow"
+            }`}
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -268,10 +309,10 @@ function Home() {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
+                    <dt className={`text-sm font-medium truncate ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                       Journal Entries
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dd className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                       {numJournalEntries}
                     </dd>
                   </dl>
@@ -280,7 +321,13 @@ function Home() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div
+            className={`overflow-hidden rounded-lg ${
+              isDark
+                ? "bg-slate-900 shadow-[0_16px_36px_rgba(2,6,23,0.38)] ring-1 ring-slate-800"
+                : "bg-white shadow"
+            }`}
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -300,10 +347,10 @@ function Home() {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
+                    <dt className={`text-sm font-medium truncate ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                       Productivity Score
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">100%</dd>
+                    <dd className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>100%</dd>
                   </dl>
                 </div>
               </div>

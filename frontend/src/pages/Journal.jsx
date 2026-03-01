@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import TopNav from "../components/TopNav";
 import Footer from "../components/Footer.jsx";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { Link } from "react-router-dom";
 
 function Journal() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [entries, setEntries] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -16,6 +18,7 @@ function Journal() {
   });
 
   const token = localStorage.getItem("token");
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!user || !token) return;
@@ -135,13 +138,21 @@ function Journal() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-gray-50"}`}>
       <TopNav />
       <div className="max-w-6xl mx-auto py-6">
-        <div className="border-4 border-dashed border-gray-200 rounded-lg p-4">
+        <div
+          className={`rounded-3xl border p-5 ${
+            isDark
+              ? "border-slate-800 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.55)]"
+              : "border-4 border-dashed border-gray-200 bg-transparent"
+          }`}
+        >
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">My Journals</h1>
+              <h1 className={`text-2xl font-bold ${isDark ? "text-slate-100" : "text-gray-900"}`}>
+                My Journals
+              </h1>
               <div className="flex items-center">
                 <input
                   id="preview-toggle"
@@ -152,7 +163,7 @@ function Journal() {
                 />
                 <label
                   htmlFor="preview-toggle"
-                  className="text-sm font-medium text-gray-700"
+                  className={`text-sm font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`}
                 >
                   Show Preview
                 </label>
@@ -168,8 +179,14 @@ function Journal() {
 
           {/* New Entry Form */}
           {showForm && (
-            <div className="mb-6 bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            <div
+              className={`mb-6 rounded-2xl p-4 ${
+                isDark
+                  ? "bg-slate-950/70 shadow-[0_18px_40px_rgba(2,6,23,0.45)] ring-1 ring-slate-800"
+                  : "bg-white shadow"
+              }`}
+            >
+              <h2 className={`mb-3 text-lg font-semibold ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                 Create a Journal Entry
               </h2>
               <input
@@ -179,7 +196,11 @@ function Journal() {
                 onChange={(e) =>
                   setNewEntry({ ...newEntry, title: e.target.value })
                 }
-                className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  isDark
+                    ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                    : ""
+                }`}
               />
               <textarea
                 placeholder="Write your thoughts here..."
@@ -187,9 +208,13 @@ function Journal() {
                 onChange={(e) =>
                   setNewEntry({ ...newEntry, content: e.target.value })
                 }
-                className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  isDark
+                    ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                    : ""
+                }`}
               />
-              <label className="block text-sm font-medium text-gray-700">
+              <label className={`block text-sm font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`}>
                 Mood
               </label>
               <select
@@ -197,7 +222,11 @@ function Journal() {
                 onChange={(e) =>
                   setNewEntry({ ...newEntry, mood: e.target.value })
                 }
-                className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  isDark
+                    ? "border-slate-700 bg-slate-900 text-slate-100"
+                    : ""
+                }`}
               >
                 <option value="happy">Happy</option>
                 <option value="sad">Sad</option>
@@ -209,7 +238,11 @@ function Journal() {
               <div className="flex justify-between">
                 <button
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  className={`rounded-md px-4 py-2 ${
+                    isDark
+                      ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
                 >
                   Cancel
                 </button>
@@ -226,18 +259,25 @@ function Journal() {
           {/* Journal Entries List */}
           <div className="space-y-4">
             {entries.length === 0 ? (
-              <p className="text-gray-500 text-center">
+              <p className={`text-center ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                 No journal entries yet! Add one above.
               </p>
             ) : (
               entries.map((entry) => (
-                <div key={entry.id} className="bg-white shadow rounded-lg p-4">
+                <div
+                  key={entry.id}
+                  className={`rounded-2xl p-4 ${
+                    isDark
+                      ? "bg-slate-950/75 shadow-[0_16px_36px_rgba(2,6,23,0.4)] ring-1 ring-slate-800"
+                      : "bg-white shadow"
+                  }`}
+                >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                         {entry.title}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                         {entry.created_at?.split("T")[0]}
                       </p>
                     </div>
@@ -247,7 +287,7 @@ function Journal() {
                   </div>
 
                   {showPreview && (
-                    <p className="mt-2 text-gray-600 line-clamp-2">
+                    <p className={`mt-2 line-clamp-2 ${isDark ? "text-slate-300" : "text-gray-600"}`}>
                       {entry.content}
                     </p>
                   )}

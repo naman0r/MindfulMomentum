@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+body.theme-dark {
+  background-color: #020617;
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+
+body.theme-light {
+  background-color: #f8fafc;
+  color: #0f172a;
+  color-scheme: light;
+}

@@ -1,10 +1,11 @@
 # api.py, most routes. 
 
-from flask import Blueprint, request, jsonify, Flask, make_response
+from flask import Blueprint, request, jsonify
 from config import supabase
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import os
+from calendar import monthrange
 from cryptography.fernet import Fernet, InvalidToken
 
 
@@ -44,6 +45,30 @@ def decrypt_content(encrypted_content):
             return "[Content could not be decrypted]"
     return encrypted_content # Return original (potentially encrypted) content if decryption is disabled or content is empty
 # --- End Encryption Setup ---
+
+
+LAUNCHPAD_TRACKER_TYPES = {"checkbox", "number", "rating"}
+
+
+def parse_launchpad_month(month_value):
+    if not month_value:
+        base_date = datetime.utcnow().date().replace(day=1)
+    else:
+        try:
+            base_date = datetime.strptime(month_value, "%Y-%m").date().replace(day=1)
+        except ValueError:
+            return None, None, "Month must be in YYYY-MM format"
+
+    last_day = monthrange(base_date.year, base_date.month)[1]
+    month_start = base_date.isoformat()
+    month_end = base_date.replace(day=last_day).isoformat()
+    return month_start, month_end, None
+
+
+def normalize_tracker_type(tracker_type):
+    if tracker_type not in LAUNCHPAD_TRACKER_TYPES:
+        return None
+    return tracker_type
 
 
 # User Routes
@@ -448,5 +473,254 @@ def complete_task(task_id):
             
         return jsonify({"message": "Task marked as completed"}), 200
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ================================ LAUNCHPAD ROUTES =================================
+
+
+@api.route("/api/launchpad", methods=["GET"])
+@jwt_required()
+def get_launchpad_month():
+    try:
+        google_id = get_jwt_identity()
+        month = request.args.get("month")
+        month_start, month_end, error = parse_launchpad_month(month)
+
+        if error:
+            return jsonify({"error": error}), 400
+
+        trackers_response = (
+            supabase.from_("launchpad_trackers")
+            .select("*")
+            .eq("google_id", google_id)
+            .eq("archived", False)
+            .order("display_order")
+            .order("created_at")
+            .execute()
+        )
+        trackers = trackers_response.data or []
+
+        entries_response = (
+            supabase.from_("launchpad_entries")
+            .select("*")
+            .eq("google_id", google_id)
+            .gte("entry_date", month_start)
+            .lte("entry_date", month_end)
+            .order("entry_date")
+            .execute()
+        )
+        entries = entries_response.data or []
+
+        return (
+            jsonify(
+                {
+                    "month": month_start[:7],
+                    "trackers": trackers,
+                    "entries": entries,
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/launchpad/day", methods=["POST"])
+@jwt_required()
+def upsert_launchpad_day():
+    try:
+        google_id = get_jwt_identity()
+        data = request.json or {}
+
+        entry_date = data.get("entry_date")
+        memorable_moment = (data.get("memorable_moment") or "").strip()
+        remember_this = (data.get("remember_this") or "").strip()
+        tracker_values = data.get("tracker_values", {})
+
+        if not entry_date:
+            return jsonify({"error": "entry_date is required"}), 400
+
+        try:
+            normalized_date = datetime.strptime(entry_date, "%Y-%m-%d").date().isoformat()
+        except ValueError:
+            return jsonify({"error": "entry_date must be in YYYY-MM-DD format"}), 400
+
+        if not isinstance(tracker_values, dict):
+            return jsonify({"error": "tracker_values must be an object"}), 400
+
+        existing_entry = (
+            supabase.from_("launchpad_entries")
+            .select("id")
+            .eq("google_id", google_id)
+            .eq("entry_date", normalized_date)
+            .execute()
+        )
+
+        payload = {
+            "google_id": google_id,
+            "entry_date": normalized_date,
+            "memorable_moment": memorable_moment,
+            "remember_this": remember_this,
+            "tracker_values": tracker_values,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+        if existing_entry.data:
+            response = (
+                supabase.from_("launchpad_entries")
+                .update(payload)
+                .eq("id", existing_entry.data[0]["id"])
+                .eq("google_id", google_id)
+                .execute()
+            )
+            entry = response.data[0] if response.data else payload
+            return jsonify({"message": "Launchpad day updated", "entry": entry}), 200
+
+        payload["created_at"] = datetime.utcnow().isoformat()
+        response = supabase.from_("launchpad_entries").insert(payload).execute()
+        entry = response.data[0] if response.data else payload
+        return jsonify({"message": "Launchpad day created", "entry": entry}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/launchpad/trackers", methods=["POST"])
+@jwt_required()
+def create_launchpad_tracker():
+    try:
+        google_id = get_jwt_identity()
+        data = request.json or {}
+
+        label = (data.get("label") or "").strip()
+        tracker_type = normalize_tracker_type(data.get("tracker_type"))
+        unit = (data.get("unit") or "").strip() or None
+        display_order = data.get("display_order", 0)
+        config = data.get("config", {})
+
+        if not label:
+            return jsonify({"error": "label is required"}), 400
+
+        if not tracker_type:
+            return jsonify({"error": "tracker_type must be checkbox, number, or rating"}), 400
+
+        if not isinstance(config, dict):
+            return jsonify({"error": "config must be an object"}), 400
+
+        try:
+            display_order = int(display_order)
+        except (TypeError, ValueError):
+            display_order = 0
+
+        tracker_payload = {
+            "google_id": google_id,
+            "label": label,
+            "tracker_type": tracker_type,
+            "unit": unit,
+            "display_order": display_order,
+            "config": config,
+            "archived": False,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+        response = supabase.from_("launchpad_trackers").insert(tracker_payload).execute()
+        tracker = response.data[0] if response.data else tracker_payload
+        return jsonify({"message": "Tracker created", "tracker": tracker}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/launchpad/tracker/<tracker_id>", methods=["PATCH"])
+@jwt_required()
+def update_launchpad_tracker(tracker_id):
+    try:
+        google_id = get_jwt_identity()
+        data = request.json or {}
+
+        existing_tracker = (
+            supabase.from_("launchpad_trackers")
+            .select("*")
+            .eq("id", tracker_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
+
+        if not existing_tracker.data:
+            return jsonify({"error": "Tracker not found"}), 404
+
+        update_payload = {}
+
+        if "label" in data:
+            label = (data.get("label") or "").strip()
+            if not label:
+                return jsonify({"error": "label cannot be empty"}), 400
+            update_payload["label"] = label
+
+        if "tracker_type" in data:
+            tracker_type = normalize_tracker_type(data.get("tracker_type"))
+            if not tracker_type:
+                return jsonify({"error": "tracker_type must be checkbox, number, or rating"}), 400
+            update_payload["tracker_type"] = tracker_type
+
+        if "unit" in data:
+            update_payload["unit"] = (data.get("unit") or "").strip() or None
+
+        if "display_order" in data:
+            try:
+                update_payload["display_order"] = int(data.get("display_order"))
+            except (TypeError, ValueError):
+                return jsonify({"error": "display_order must be a number"}), 400
+
+        if "config" in data:
+            if not isinstance(data.get("config"), dict):
+                return jsonify({"error": "config must be an object"}), 400
+            update_payload["config"] = data.get("config")
+
+        if "archived" in data:
+            update_payload["archived"] = bool(data.get("archived"))
+
+        if not update_payload:
+            return jsonify({"error": "No valid fields provided"}), 400
+
+        response = (
+            supabase.from_("launchpad_trackers")
+            .update(update_payload)
+            .eq("id", tracker_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
+        tracker = response.data[0] if response.data else None
+        return jsonify({"message": "Tracker updated", "tracker": tracker}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/api/launchpad/tracker/<tracker_id>", methods=["DELETE"])
+@jwt_required()
+def archive_launchpad_tracker(tracker_id):
+    try:
+        google_id = get_jwt_identity()
+
+        existing_tracker = (
+            supabase.from_("launchpad_trackers")
+            .select("id")
+            .eq("id", tracker_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
+
+        if not existing_tracker.data:
+            return jsonify({"error": "Tracker not found"}), 404
+
+        response = (
+            supabase.from_("launchpad_trackers")
+            .update({"archived": True})
+            .eq("id", tracker_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
+        tracker = response.data[0] if response.data else None
+        return jsonify({"message": "Tracker archived", "tracker": tracker}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
