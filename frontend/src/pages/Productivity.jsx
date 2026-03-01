@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import TopNav from "../components/TopNav";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 function Productivity() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -14,6 +16,7 @@ function Productivity() {
   });
 
   const token = localStorage.getItem("token");
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!user || !token) return;
@@ -150,13 +153,19 @@ function Productivity() {
     totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-gray-50"}`}>
       <TopNav />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="border-4 border-dashed border-gray-200 rounded-lg p-4">
+          <div
+            className={`rounded-3xl p-4 ${
+              isDark
+                ? "border border-slate-800 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.5)]"
+                : "rounded-lg border-4 border-dashed border-gray-200"
+            }`}
+          >
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className={`text-2xl font-bold ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                 Productivity Hub
               </h1>
               <button
@@ -169,8 +178,14 @@ function Productivity() {
 
             {/* Task Form */}
             {showForm && (
-              <div className="mb-6 bg-white p-4 rounded-lg shadow">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <div
+                className={`mb-6 rounded-lg p-4 ${
+                  isDark
+                    ? "bg-slate-950/70 shadow-[0_18px_40px_rgba(2,6,23,0.45)] ring-1 ring-slate-800"
+                    : "bg-white shadow"
+                }`}
+              >
+                <h2 className={`mb-3 text-lg font-semibold ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                   Create a Task
                 </h2>
                 <input
@@ -180,7 +195,11 @@ function Productivity() {
                   onChange={(e) =>
                     setNewTask({ ...newTask, title: e.target.value })
                   }
-                  className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                      : ""
+                  }`}
                 />
                 <textarea
                   placeholder="Description"
@@ -188,7 +207,11 @@ function Productivity() {
                   onChange={(e) =>
                     setNewTask({ ...newTask, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                      : ""
+                  }`}
                 />
                 <input
                   type="date"
@@ -196,10 +219,14 @@ function Productivity() {
                   onChange={(e) =>
                     setNewTask({ ...newTask, due_date: e.target.value })
                   }
-                  className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100"
+                      : ""
+                  }`}
                 />
 
-                <label className="block text-sm font-medium text-gray-700">
+                <label className={`block text-sm font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`}>
                   Priority (1-10)
                 </label>
                 <input
@@ -212,13 +239,21 @@ function Productivity() {
                     const priority = Math.min(10, Math.max(1, value || 1)); // Ensure value is between 1 and 10
                     setNewTask({ ...newTask, priority: priority });
                   }}
-                  className="w-full px-3 py-2 border rounded-md mb-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`mb-3 w-full rounded-md border px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100"
+                      : ""
+                  }`}
                 />
 
                 <div className="flex justify-between">
                   <button
                     onClick={() => setShowForm(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                    className={`rounded-md px-4 py-2 ${
+                      isDark
+                        ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
                   >
                     Cancel
                   </button>
@@ -237,20 +272,26 @@ function Productivity() {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="bg-white shadow rounded-lg p-4 flex items-center justify-between"
+                  className={`flex items-center justify-between rounded-lg p-4 ${
+                    isDark
+                      ? "bg-slate-950/70 shadow-[0_16px_36px_rgba(2,6,23,0.42)] ring-1 ring-slate-800"
+                      : "bg-white shadow"
+                  }`}
                 >
                   <div className="flex items-center space-x-4">
                     <input
                       type="checkbox"
                       checked={task.completed}
                       onChange={() => handleToggleTask(task.id)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      className={`h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 ${
+                        isDark ? "border-slate-700 bg-slate-900" : "border-gray-300"
+                      }`}
                     />
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                         {task.title}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                         Due: {task.due_date}
                       </p>
                     </div>
@@ -267,8 +308,14 @@ function Productivity() {
 
             {/* Stats */}
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <div className="bg-white shadow rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900">
+              <div
+                className={`rounded-lg p-4 ${
+                  isDark
+                    ? "bg-slate-950/70 shadow-[0_16px_36px_rgba(2,6,23,0.42)] ring-1 ring-slate-800"
+                    : "bg-white shadow"
+                }`}
+              >
+                <h3 className={`text-lg font-medium ${isDark ? "text-slate-100" : "text-gray-900"}`}>
                   Tasks Completed
                 </h3>
                 <p className="mt-2 text-3xl font-bold text-indigo-600">
@@ -276,7 +323,13 @@ function Productivity() {
                 </p>
               </div>
 
-              <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div
+                className={`overflow-hidden rounded-lg ${
+                  isDark
+                    ? "bg-slate-950/70 shadow-[0_16px_36px_rgba(2,6,23,0.42)] ring-1 ring-slate-800"
+                    : "bg-white shadow"
+                }`}
+              >
                 <div className="p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -296,7 +349,7 @@ function Productivity() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text- font-medium text-black truncate">
+                        <dt className={`font-medium truncate ${isDark ? "text-slate-100" : "text-black"}`}>
                           Focus Time Today
                         </dt>
                         <dd className="mt-2 text-3xl font-bold text-indigo-600">
@@ -308,7 +361,13 @@ function Productivity() {
                 </div>
               </div>
 
-              <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div
+                className={`overflow-hidden rounded-lg ${
+                  isDark
+                    ? "bg-slate-950/70 shadow-[0_16px_36px_rgba(2,6,23,0.42)] ring-1 ring-slate-800"
+                    : "bg-white shadow"
+                }`}
+              >
                 <div className="p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -328,7 +387,7 @@ function Productivity() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
+                        <dt className={`text-sm font-medium truncate ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                           Productivity Score
                         </dt>
                         <dd className="mt-2 text-3xl font-bold text-indigo-600">
