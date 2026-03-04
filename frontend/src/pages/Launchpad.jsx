@@ -1,7 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import TopNav from "../components/TopNav";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+
+const SLEEP_SCORE_KEY = "__sleep_score";
+const HEADER_HEIGHT = 48;
+const ROW_HEIGHT = 48;
+const CHART_WIDTH = 220;
+const CHART_PADDING_LEFT = 14;
+const CHART_PADDING_RIGHT = 40;
 
 const formatMonthKey = (date = new Date()) => {
   const year = date.getFullYear();
@@ -28,20 +35,36 @@ const buildMonthDays = (monthKey) => {
       iso,
       dayNumber: index + 1,
       weekday: date.toLocaleDateString(undefined, { weekday: "short" }),
-      fullLabel: date.toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
     };
   });
 };
 
 const getEntryWithDefaults = (entry) => ({
   memorable_moment: entry?.memorable_moment || "",
-  remember_this: entry?.remember_this || "",
   tracker_values: entry?.tracker_values || {},
 });
+
+const getNormalizedSleepScore = (value) => {
+  if (value === "" || value === undefined || value === null) {
+    return "";
+  }
+
+  const numericValue = Number(value);
+
+  if (Number.isNaN(numericValue)) {
+    return "";
+  }
+
+  return Math.max(0, Math.min(100, numericValue));
+};
+
+const getRowTone = (isDark, rowIndex) => {
+  if (isDark) {
+    return rowIndex % 2 === 0 ? "bg-slate-900" : "bg-slate-950/75";
+  }
+
+  return rowIndex % 2 === 0 ? "bg-[#fcfbf6]" : "bg-[#faf6ec]";
+};
 
 const Launchpad = () => {
   const { user } = useAuth();
@@ -55,6 +78,8 @@ const Launchpad = () => {
   const [error, setError] = useState("");
   const [trackerError, setTrackerError] = useState("");
   const [addingTracker, setAddingTracker] = useState(false);
+  const [showTrackerManager, setShowTrackerManager] = useState(false);
+  const [trackerPendingDelete, setTrackerPendingDelete] = useState(null);
   const [newTracker, setNewTracker] = useState({
     label: "",
     tracker_type: "checkbox",
@@ -62,8 +87,9 @@ const Launchpad = () => {
     max: 5,
   });
 
-  const monthDays = buildMonthDays(selectedMonth);
   const isDark = theme === "dark";
+  const monthDays = buildMonthDays(selectedMonth);
+  const chartHeight = monthDays.length * ROW_HEIGHT;
 
   useEffect(() => {
     const loadLaunchpad = async () => {
@@ -102,7 +128,7 @@ const Launchpad = () => {
         setEntriesByDate(nextEntries);
       } catch (fetchError) {
         setError(
-          `${fetchError.message}. VITE_BACKEND_URL points to ${import.meta.env.VITE_BACKEND_URL} to it.`,
+          `${fetchError.message}. Make sure the backend with /api/launchpad is running and VITE_BACKEND_URL points to the correct server.`,
         );
       } finally {
         setLoading(false);
@@ -143,6 +169,12 @@ const Launchpad = () => {
     });
   };
 
+  const updateSleepScore = (entryDate, value) => {
+    const normalizedValue = value === "" ? "" : getNormalizedSleepScore(value);
+
+    updateTrackerValue(entryDate, SLEEP_SCORE_KEY, normalizedValue);
+  };
+
   const saveDay = async (entryDate) => {
     if (!token) {
       return;
@@ -164,7 +196,6 @@ const Launchpad = () => {
           body: JSON.stringify({
             entry_date: entryDate,
             memorable_moment: entry.memorable_moment,
-            remember_this: entry.remember_this,
             tracker_values: entry.tracker_values,
           }),
         },
@@ -274,10 +305,19 @@ const Launchpad = () => {
     }
   };
 
+  const confirmArchiveTracker = async () => {
+    if (!trackerPendingDelete) {
+      return;
+    }
+
+    await handleArchiveTracker(trackerPendingDelete.id);
+    setTrackerPendingDelete(null);
+  };
+
   const populatedDays = monthDays.filter((day) => {
     const entry = getEntryWithDefaults(entriesByDate[day.iso]);
 
-    if (entry.memorable_moment.trim() || entry.remember_this.trim()) {
+    if (entry.memorable_moment.trim()) {
       return true;
     }
 
@@ -287,19 +327,48 @@ const Launchpad = () => {
     );
   }).length;
 
-  const checkboxTrackers = trackers.filter(
-    (tracker) => tracker.tracker_type === "checkbox",
-  );
-
-  const checkboxCompletions = monthDays.reduce((total, day) => {
+  const checkboxWins = monthDays.reduce((total, day) => {
     const entry = getEntryWithDefaults(entriesByDate[day.iso]);
     return (
       total +
-      checkboxTrackers.filter(
-        (tracker) => entry.tracker_values?.[tracker.id] === true,
+      trackers.filter(
+        (tracker) =>
+          tracker.tracker_type === "checkbox" &&
+          entry.tracker_values?.[tracker.id] === true,
       ).length
     );
   }, 0);
+
+  const sleepPoints = useMemo(() => {
+    return monthDays
+      .map((day, index) => {
+        const entry = getEntryWithDefaults(entriesByDate[day.iso]);
+        const sleepScore = getNormalizedSleepScore(
+          entry.tracker_values?.[SLEEP_SCORE_KEY],
+        );
+
+        if (sleepScore === "") {
+          return null;
+        }
+
+        const availableWidth =
+          CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+        const x = CHART_PADDING_LEFT + (sleepScore / 100) * availableWidth;
+        const y = index * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+        return {
+          dayNumber: day.dayNumber,
+          sleepScore,
+          x,
+          y,
+        };
+      })
+      .filter(Boolean);
+  }, [entriesByDate, monthDays]);
+
+  const polylinePoints = sleepPoints
+    .map((point) => `${point.x},${point.y}`)
+    .join(" ");
 
   const renderTrackerCell = (dayIso, tracker) => {
     const entry = getEntryWithDefaults(entriesByDate[dayIso]);
@@ -314,8 +383,8 @@ const Launchpad = () => {
             onChange={(event) =>
               updateTrackerValue(dayIso, tracker.id, event.target.checked)
             }
-            className={`h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 ${
-              isDark ? "border-slate-600 bg-slate-950" : "border-slate-300"
+            className={`h-4 w-4 rounded text-slate-900 ${
+              isDark ? "border-slate-600 bg-slate-950" : "border-stone-400"
             }`}
           />
         </div>
@@ -324,7 +393,7 @@ const Launchpad = () => {
 
     if (tracker.tracker_type === "number") {
       return (
-        <div className="flex min-w-[130px] items-center gap-2">
+        <div className="flex min-w-[78px] items-center gap-1.5">
           <input
             type="number"
             value={value ?? ""}
@@ -335,16 +404,20 @@ const Launchpad = () => {
                 event.target.value === "" ? "" : Number(event.target.value),
               )
             }
-            className={`w-full rounded-lg border px-2 py-1.5 text-sm focus:border-sky-400 focus:outline-none ${
+            className={`w-full rounded-md border px-2 py-1 text-xs focus:outline-none ${
               isDark
                 ? "border-slate-700 bg-slate-950 text-slate-100"
-                : "border-slate-200 bg-white text-slate-900"
+                : "border-stone-300 bg-white text-stone-800"
             }`}
             placeholder="0"
           />
           {tracker.unit ? (
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? "text-slate-500" : "text-slate-400"}`}
+              className={
+                isDark
+                  ? "text-[10px] text-slate-500"
+                  : "text-[10px] text-stone-400"
+              }
             >
               {tracker.unit}
             </span>
@@ -365,10 +438,10 @@ const Launchpad = () => {
             event.target.value === "" ? "" : Number(event.target.value),
           )
         }
-        className={`min-w-[100px] rounded-lg border px-2 py-1.5 text-sm focus:border-sky-400 focus:outline-none ${
+        className={`min-w-[84px] rounded-md border px-2 py-1 text-xs focus:outline-none ${
           isDark
             ? "border-slate-700 bg-slate-950 text-slate-100"
-            : "border-slate-200 bg-white text-slate-900"
+            : "border-stone-300 bg-white text-stone-800"
         }`}
       >
         <option value="">-</option>
@@ -384,31 +457,33 @@ const Launchpad = () => {
   if (!user) {
     return (
       <div
-        className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-[#f6f7fb]"}`}
+        className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-stone-100"}`}
       >
         <TopNav />
-        <div className="mx-auto max-w-4xl px-6 py-20">
+        <div className="mx-auto max-w-5xl px-6 py-16">
           <div
-            className={`rounded-[28px] border p-8 ${
+            className={`rounded-[34px] border p-10 ${
               isDark
-                ? "border-slate-800 bg-slate-900 shadow-[0_28px_90px_rgba(2,6,23,0.6)]"
-                : "border-slate-200 bg-white shadow-sm"
+                ? "border-slate-800 bg-slate-900 shadow-[0_28px_90px_rgba(2,6,23,0.65)]"
+                : "border-stone-200 bg-[#fcfbf6] shadow-[0_24px_70px_rgba(120,113,108,0.15)]"
             }`}
           >
             <p
-              className={`text-xs font-semibold uppercase tracking-[0.28em] ${isDark ? "text-sky-300" : "text-slate-400"}`}
+              className={`text-xs font-semibold uppercase tracking-[0.28em] ${isDark ? "text-sky-300" : "text-stone-500"}`}
             >
               Monthly Daily System
             </p>
             <h1
-              className={`mt-3 text-5xl font-bold ${isDark ? "text-slate-100" : "text-slate-950"}`}
+              className={`mt-4 text-5xl font-semibold tracking-tight ${
+                isDark ? "text-slate-100" : "text-stone-900"
+              }`}
             >
               Launchpad
             </h1>
             <p
-              className={`mt-4 max-w-2xl text-lg ${isDark ? "text-slate-300" : "text-slate-600"}`}
+              className={`mt-4 max-w-2xl text-lg ${isDark ? "text-slate-300" : "text-stone-600"}`}
             >
-              Sign in to access your monthly memory and tracking workspace.
+              Sign in to use the notebook-style monthly spread.
             </p>
           </div>
         </div>
@@ -418,80 +493,50 @@ const Launchpad = () => {
 
   return (
     <div
-      className={`min-h-screen pb-16 ${isDark ? "bg-slate-950" : "bg-[#f6f7fb]"}`}
+      className={`min-h-screen pb-10 ${isDark ? "bg-slate-950" : "bg-stone-100"}`}
     >
       <TopNav />
-      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[1720px] px-4 py-6 sm:px-6 lg:px-8">
         <section
-          className={`overflow-hidden rounded-[28px] border ${
+          className={`overflow-hidden rounded-[24px] border ${
             isDark
-              ? "border-slate-800 bg-slate-900 shadow-[0_30px_110px_rgba(2,6,23,0.65)]"
-              : "border-slate-200 bg-white shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
+              ? "border-slate-800 bg-slate-900 shadow-[0_36px_120px_rgba(2,6,23,0.7)]"
+              : "border-stone-200 bg-[#fcfbf6] shadow-[0_30px_110px_rgba(120,113,108,0.16)]"
           }`}
         >
           <div
-            className={`border-b px-6 py-6 text-white ${
+            className={`border-b px-5 py-4 ${
               isDark
-                ? "border-slate-800 bg-[linear-gradient(135deg,#020617_0%,#082f49_48%,#172554_100%)]"
-                : "border-slate-200 bg-[linear-gradient(135deg,#0f172a_0%,#111827_45%,#0b3b62_100%)]"
+                ? "border-slate-800 bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
+                : "border-stone-200 bg-[#f8f4ea]"
             }`}
           >
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">
+                <p
+                  className={`text-xs font-semibold uppercase tracking-[0.28em] ${isDark ? "text-sky-300" : "text-stone-500"}`}
+                >
                   Monthly Daily System
                 </p>
-                <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                <h1
+                  className={`mt-2 text-4xl font-semibold tracking-tight ${
+                    isDark ? "text-slate-100" : "text-stone-900"
+                  }`}
+                >
                   Launchpad
                 </h1>
-                <p className="mt-3 max-w-3xl text-sm text-slate-300 sm:text-base">
-                  A Notion-style command surface with a spreadsheet rhythm: one
-                  row per day, memory capture, and fully customizable daily
-                  trackers.
+                <p
+                  className={`mt-2 text-xs ${isDark ? "text-slate-400" : "text-stone-500"}`}
+                >
+                  One notebook spread for the month: memory log, daily signals,
+                  and a sleep trend.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-300">
-                    Days Logged
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {populatedDays}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-300">
-                    Trackers
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {trackers.length}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-300">
-                    Checkbox Wins
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {checkboxCompletions}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`border-b px-6 py-5 ${
-              isDark
-                ? "border-slate-800 bg-slate-900/80"
-                : "border-slate-200 bg-slate-50"
-            }`}
-          >
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex flex-col gap-3 lg:items-end">
                 <label
-                  className={`flex min-w-[220px] flex-col gap-2 text-sm font-medium ${
-                    isDark ? "text-slate-300" : "text-slate-700"
+                  className={`flex min-w-[190px] flex-col gap-1.5 text-xs font-medium ${
+                    isDark ? "text-slate-300" : "text-stone-700"
                   }`}
                 >
                   Month
@@ -499,335 +544,589 @@ const Launchpad = () => {
                     type="month"
                     value={selectedMonth}
                     onChange={(event) => setSelectedMonth(event.target.value)}
-                    className={`rounded-2xl border px-4 py-3 focus:border-sky-400 focus:outline-none ${
+                    className={`rounded-xl border px-3 py-2 text-sm focus:outline-none ${
                       isDark
                         ? "border-slate-700 bg-slate-950 text-slate-100"
-                        : "border-slate-200 bg-white text-slate-900"
+                        : "border-stone-300 bg-white text-stone-900"
                     }`}
                   />
                 </label>
-              </div>
 
-              <form
-                onSubmit={handleAddTracker}
-                className={`grid gap-3 rounded-3xl border p-4 lg:grid-cols-[minmax(200px,1fr)_160px_130px_110px_auto] ${
-                  isDark
-                    ? "border-slate-800 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
-                    : "border-slate-200 bg-white"
-                }`}
-              >
-                <input
-                  type="text"
-                  value={newTracker.label}
-                  onChange={(event) =>
-                    setNewTracker((previous) => ({
-                      ...previous,
-                      label: event.target.value,
-                    }))
-                  }
-                  className={`rounded-2xl border px-4 py-3 text-sm focus:border-sky-400 focus:outline-none ${
-                    isDark
-                      ? "border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500"
-                      : "border-slate-200 text-slate-900"
-                  }`}
-                  placeholder="New tracker label"
-                  required
-                />
-
-                <select
-                  value={newTracker.tracker_type}
-                  onChange={(event) =>
-                    setNewTracker((previous) => ({
-                      ...previous,
-                      tracker_type: event.target.value,
-                    }))
-                  }
-                  className={`rounded-2xl border px-4 py-3 text-sm focus:border-sky-400 focus:outline-none ${
-                    isDark
-                      ? "border-slate-700 bg-slate-950 text-slate-100"
-                      : "border-slate-200 text-slate-900"
-                  }`}
-                >
-                  <option value="checkbox">Checkbox</option>
-                  <option value="number">Number</option>
-                  <option value="rating">Rating</option>
-                </select>
-
-                <input
-                  type="text"
-                  value={
-                    newTracker.tracker_type === "checkbox"
-                      ? ""
-                      : newTracker.unit
-                  }
-                  onChange={(event) =>
-                    setNewTracker((previous) => ({
-                      ...previous,
-                      unit: event.target.value,
-                    }))
-                  }
-                  disabled={newTracker.tracker_type === "checkbox"}
-                  className={`rounded-2xl border px-4 py-3 text-sm focus:border-sky-400 focus:outline-none disabled:cursor-not-allowed ${
-                    isDark
-                      ? "border-slate-700 bg-slate-950 text-slate-100 disabled:bg-slate-900 disabled:text-slate-600"
-                      : "border-slate-200 text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                  }`}
-                  placeholder="Unit"
-                />
-
-                <input
-                  type="number"
-                  min="2"
-                  max="10"
-                  value={
-                    newTracker.tracker_type === "rating" ? newTracker.max : ""
-                  }
-                  onChange={(event) =>
-                    setNewTracker((previous) => ({
-                      ...previous,
-                      max: event.target.value,
-                    }))
-                  }
-                  disabled={newTracker.tracker_type !== "rating"}
-                  className={`rounded-2xl border px-4 py-3 text-sm focus:border-sky-400 focus:outline-none disabled:cursor-not-allowed ${
-                    isDark
-                      ? "border-slate-700 bg-slate-950 text-slate-100 disabled:bg-slate-900 disabled:text-slate-600"
-                      : "border-slate-200 text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                  }`}
-                  placeholder="Max"
-                />
-
-                <button
-                  type="submit"
-                  disabled={addingTracker}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {addingTracker ? "Adding..." : "Add Tracker"}
-                </button>
-              </form>
-            </div>
-
-            {trackerError ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {trackerError}
-              </div>
-            ) : null}
-
-            {trackers.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {trackers.map((tracker) => (
-                  <button
-                    key={tracker.id}
-                    type="button"
-                    onClick={() => handleArchiveTracker(tracker.id)}
-                    className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                <div className="flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
+                  <div
+                    className={`rounded-full px-2.5 py-1.5 ${
                       isDark
-                        ? "border-slate-700 bg-slate-950 text-slate-300 hover:border-red-400/40 hover:text-red-300"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-600"
+                        ? "bg-slate-950 text-slate-300 ring-1 ring-slate-800"
+                        : "bg-white text-stone-500 ring-1 ring-stone-200"
                     }`}
                   >
-                    {tracker.label} · remove
-                  </button>
-                ))}
+                    Days Logged {populatedDays}
+                  </div>
+                  <div
+                    className={`rounded-full px-2.5 py-1.5 ${
+                      isDark
+                        ? "bg-slate-950 text-slate-300 ring-1 ring-slate-800"
+                        : "bg-white text-stone-500 ring-1 ring-stone-200"
+                    }`}
+                  >
+                    Trackers {trackers.length}
+                  </div>
+                  <div
+                    className={`rounded-full px-2.5 py-1.5 ${
+                      isDark
+                        ? "bg-slate-950 text-slate-300 ring-1 ring-slate-800"
+                        : "bg-white text-stone-500 ring-1 ring-stone-200"
+                    }`}
+                  >
+                    Wins {checkboxWins}
+                  </div>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <div
+            className={`border-b px-5 py-3 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-stone-200 bg-[#f6f0e1]"}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div
+                  className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                    isDark ? "text-slate-400" : "text-stone-500"
+                  }`}
+                >
+                  Tracker Controls
+                </div>
+                <div
+                  className={`mt-1 text-xs ${
+                    isDark ? "text-slate-500" : "text-stone-400"
+                  }`}
+                >
+                  Add and remove custom tracker columns.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTrackerManager((current) => !current)}
+                className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                  isDark
+                    ? "border-slate-700 bg-slate-950 text-slate-300"
+                    : "border-stone-200 bg-white text-stone-600"
+                }`}
+              >
+                {showTrackerManager ? "Hide" : "Manage"}
+              </button>
+            </div>
+
+            {showTrackerManager ? (
+              <>
+                <form
+                  onSubmit={handleAddTracker}
+                  className="mt-3 grid gap-2 lg:grid-cols-[minmax(180px,1fr)_130px_96px_82px_auto]"
+                >
+                  <input
+                    type="text"
+                    value={newTracker.label}
+                    onChange={(event) =>
+                      setNewTracker((previous) => ({
+                        ...previous,
+                        label: event.target.value,
+                      }))
+                    }
+                    className={`rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isDark
+                        ? "border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500"
+                        : "border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
+                    }`}
+                    placeholder="Add tracker column"
+                    required
+                  />
+
+                  <select
+                    value={newTracker.tracker_type}
+                    onChange={(event) =>
+                      setNewTracker((previous) => ({
+                        ...previous,
+                        tracker_type: event.target.value,
+                      }))
+                    }
+                    className={`rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isDark
+                        ? "border-slate-700 bg-slate-950 text-slate-100"
+                        : "border-stone-300 bg-white text-stone-900"
+                    }`}
+                  >
+                    <option value="checkbox">Checkbox</option>
+                    <option value="number">Number</option>
+                    <option value="rating">Rating</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    value={
+                      newTracker.tracker_type === "checkbox"
+                        ? ""
+                        : newTracker.unit
+                    }
+                    onChange={(event) =>
+                      setNewTracker((previous) => ({
+                        ...previous,
+                        unit: event.target.value,
+                      }))
+                    }
+                    disabled={newTracker.tracker_type === "checkbox"}
+                    className={`rounded-xl border px-3 py-2 text-xs focus:outline-none disabled:cursor-not-allowed ${
+                      isDark
+                        ? "border-slate-700 bg-slate-950 text-slate-100 disabled:bg-slate-900 disabled:text-slate-600"
+                        : "border-stone-300 bg-white text-stone-900 disabled:bg-stone-100 disabled:text-stone-400"
+                    }`}
+                    placeholder="Unit"
+                  />
+
+                  <input
+                    type="number"
+                    min="2"
+                    max="10"
+                    value={
+                      newTracker.tracker_type === "rating" ? newTracker.max : ""
+                    }
+                    onChange={(event) =>
+                      setNewTracker((previous) => ({
+                        ...previous,
+                        max: event.target.value,
+                      }))
+                    }
+                    disabled={newTracker.tracker_type !== "rating"}
+                    className={`rounded-xl border px-3 py-2 text-xs focus:outline-none disabled:cursor-not-allowed ${
+                      isDark
+                        ? "border-slate-700 bg-slate-950 text-slate-100 disabled:bg-slate-900 disabled:text-slate-600"
+                        : "border-stone-300 bg-white text-stone-900 disabled:bg-stone-100 disabled:text-stone-400"
+                    }`}
+                    placeholder="Max"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={addingTracker}
+                    className="rounded-xl bg-stone-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {addingTracker ? "Adding..." : "Add Tracker"}
+                  </button>
+                </form>
+
+                {trackerError ? (
+                  <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {trackerError}
+                  </div>
+                ) : null}
+
+                {trackers.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {trackers.map((tracker) => (
+                      <button
+                        key={tracker.id}
+                        type="button"
+                        onClick={() => setTrackerPendingDelete(tracker)}
+                        className={`rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                          isDark
+                            ? "border-slate-700 bg-slate-950 text-slate-300 hover:border-red-400/40 hover:text-red-300"
+                            : "border-stone-200 bg-white text-stone-500 hover:border-red-200 hover:text-red-600"
+                        }`}
+                      >
+                        {tracker.label} remove
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </div>
 
           {error ? (
-            <div className="border-b border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">
+            <div className="border-b border-red-200 bg-red-50 px-8 py-4 text-sm text-red-700">
               {error}
             </div>
           ) : null}
 
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div
-                className={`px-6 py-10 text-center ${isDark ? "text-slate-400" : "text-slate-500"}`}
+          {loading ? (
+            <div
+              className={`px-8 py-14 text-center ${isDark ? "text-slate-400" : "text-stone-500"}`}
+            >
+              Loading Launchpad...
+            </div>
+          ) : (
+            <div className="grid gap-0 lg:grid-cols-[1.05fr_1.45fr_280px]">
+              <section
+                className={`border-r ${isDark ? "border-slate-800" : "border-stone-200"}`}
               >
-                Loading Launchpad...
-              </div>
-            ) : (
-              <table className="min-w-[1200px] border-separate border-spacing-0">
-                <thead>
-                  <tr>
-                    <th
-                      className={`sticky left-0 z-30 border-b border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] ${
-                        isDark
-                          ? "border-slate-800 bg-slate-950 text-slate-400"
-                          : "border-slate-200 bg-slate-100 text-slate-500"
-                      }`}
+                <div
+                  className={`border-b px-4 ${
+                    isDark
+                      ? "border-slate-800 bg-slate-900"
+                      : "border-stone-200 bg-[#f9f3e6]"
+                  }`}
+                  style={{ height: `${HEADER_HEIGHT}px` }}
+                >
+                  <div className="flex h-full items-center">
+                    <div
+                      className={`text-sm font-semibold tracking-wide ${isDark ? "text-slate-100" : "text-stone-900"}`}
                     >
-                      Day
-                    </th>
-                    <th
-                      className={`sticky left-[118px] z-30 border-b border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] ${
-                        isDark
-                          ? "border-slate-800 bg-slate-950 text-slate-400"
-                          : "border-slate-200 bg-slate-100 text-slate-500"
-                      }`}
+                      Memorable Moments
+                    </div>
+                  </div>
+                </div>
+
+                {monthDays.map((day, rowIndex) => {
+                  const rowTone = getRowTone(isDark, rowIndex);
+                  const entry = getEntryWithDefaults(entriesByDate[day.iso]);
+
+                  return (
+                    <div
+                      key={`memory-${day.iso}`}
+                      className={`grid grid-cols-[34px_minmax(0,1fr)] items-center border-b px-3 ${
+                        isDark ? "border-slate-800" : "border-stone-200"
+                      } ${rowTone}`}
+                      style={{ height: `${ROW_HEIGHT}px` }}
                     >
-                      Memorable Moment
-                    </th>
-                    <th
-                      className={`sticky left-[438px] z-30 border-b border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] ${
-                        isDark
-                          ? "border-slate-800 bg-slate-950 text-slate-400"
-                          : "border-slate-200 bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      Remember This
-                    </th>
-                    {trackers.map((tracker) => (
-                      <th
-                        key={tracker.id}
-                        className={`border-b border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] ${
+                      <div className="pr-3 pt-1 text-right">
+                        <div
+                          className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-stone-600"}`}
+                        >
+                          {day.dayNumber}
+                        </div>
+                        <div
+                          className={`text-[10px] uppercase tracking-[0.22em] ${isDark ? "text-slate-500" : "text-stone-400"}`}
+                        >
+                          {day.weekday}
+                        </div>
+                      </div>
+
+                      <textarea
+                        value={entry.memorable_moment}
+                        onChange={(event) =>
+                          updateEntryField(
+                            day.iso,
+                            "memorable_moment",
+                            event.target.value,
+                          )
+                        }
+                        className={`h-[30px] resize-none border-0 bg-transparent px-1 py-1 text-xs leading-5 focus:outline-none ${
                           isDark
-                            ? "border-slate-800 bg-slate-900 text-slate-400"
-                            : "border-slate-200 bg-[#eef6ff] text-slate-500"
+                            ? "text-slate-100 placeholder:text-slate-500"
+                            : "text-stone-800 placeholder:text-stone-400"
                         }`}
+                        placeholder="What stood out today?"
+                      />
+                    </div>
+                  );
+                })}
+              </section>
+
+              <section
+                className={`border-r ${isDark ? "border-slate-800" : "border-stone-200"}`}
+              >
+                <div className="overflow-x-auto">
+                  <div className="min-w-max">
+                    <div
+                      className={`grid border-b ${
+                        isDark
+                          ? "border-slate-800 bg-slate-900"
+                          : "border-stone-200 bg-[#f9f3e6]"
+                      }`}
+                      style={{
+                        gridTemplateColumns: `42px 72px repeat(${trackers.length}, minmax(74px, 1fr)) 64px`,
+                        height: `${HEADER_HEIGHT}px`,
+                      }}
+                    >
+                      <div
+                        className={`flex items-center justify-center border-r px-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-800 text-slate-400" : "border-stone-200 text-stone-500"}`}
                       >
-                        <div className="min-w-[120px]">
+                        Day
+                      </div>
+                      <div
+                        className={`flex items-center justify-center border-r px-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-800 text-slate-400" : "border-stone-200 text-stone-500"}`}
+                      >
+                        Sleep
+                      </div>
+
+                      {trackers.map((tracker) => (
+                        <div
+                          key={`tracker-head-${tracker.id}`}
+                          className={`flex flex-col items-center justify-center border-r px-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                            isDark
+                              ? "border-slate-800 text-slate-300"
+                              : "border-stone-200 text-stone-600"
+                          }`}
+                        >
+                          <div>{tracker.label}</div>
                           <div
                             className={
-                              isDark ? "text-slate-200" : "text-slate-700"
+                              isDark
+                                ? "mt-0.5 text-[8px] text-slate-500"
+                                : "mt-0.5 text-[8px] text-stone-400"
                             }
-                          >
-                            {tracker.label}
-                          </div>
-                          <div
-                            className={`mt-1 text-[10px] tracking-[0.22em] ${isDark ? "text-slate-500" : "text-slate-400"}`}
                           >
                             {tracker.tracker_type}
                           </div>
                         </div>
-                      </th>
-                    ))}
-                    <th
-                      className={`sticky right-0 z-20 border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] ${
-                        isDark
-                          ? "border-slate-800 bg-slate-950 text-slate-400"
-                          : "border-slate-200 bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      Save
-                    </th>
-                  </tr>
-                </thead>
+                      ))}
 
-                <tbody>
-                  {monthDays.map((day, rowIndex) => {
-                    const rowShade = isDark
-                      ? rowIndex % 2 === 0
-                        ? "bg-slate-900"
-                        : "bg-slate-950/80"
-                      : rowIndex % 2 === 0
-                        ? "bg-white"
-                        : "bg-slate-50/70";
-                    const entry = getEntryWithDefaults(entriesByDate[day.iso]);
+                      <div
+                        className={`flex items-center justify-center px-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-slate-400" : "text-stone-500"}`}
+                      >
+                        Save
+                      </div>
+                    </div>
 
-                    return (
-                      <tr key={day.iso}>
-                        <td
-                          className={`sticky left-0 z-10 border-b border-r px-4 py-3 ${
-                            isDark ? "border-slate-800" : "border-slate-200"
-                          } ${rowShade}`}
+                    {monthDays.map((day, rowIndex) => {
+                      const rowTone = getRowTone(isDark, rowIndex);
+                      const entry = getEntryWithDefaults(
+                        entriesByDate[day.iso],
+                      );
+                      const sleepScoreValue = getNormalizedSleepScore(
+                        entry.tracker_values?.[SLEEP_SCORE_KEY],
+                      );
+
+                      return (
+                        <div
+                          key={`table-${day.iso}`}
+                          className={`grid items-center border-b ${
+                            isDark ? "border-slate-800" : "border-stone-200"
+                          } ${rowTone}`}
+                          style={{
+                            gridTemplateColumns: `42px 72px repeat(${trackers.length}, minmax(74px, 1fr)) 64px`,
+                            height: `${ROW_HEIGHT}px`,
+                          }}
                         >
-                          <div className="min-w-[118px]">
-                            <div
-                              className={`text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}
-                            >
-                              {day.dayNumber}
-                            </div>
-                            <div
-                              className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-slate-500" : "text-slate-400"}`}
-                            >
-                              {day.weekday}
-                            </div>
+                          <div
+                            className={`flex h-full items-center justify-center border-r px-1.5 text-center text-xs font-semibold ${isDark ? "border-slate-800 text-slate-200" : "border-stone-200 text-stone-700"}`}
+                          >
+                            {day.dayNumber}
                           </div>
-                        </td>
 
-                        <td
-                          className={`sticky left-[118px] z-10 border-b border-r px-3 py-2 ${
-                            isDark ? "border-slate-800" : "border-slate-200"
-                          } ${rowShade}`}
-                        >
-                          <textarea
-                            value={entry.memorable_moment}
-                            onChange={(event) =>
-                              updateEntryField(
-                                day.iso,
-                                "memorable_moment",
-                                event.target.value,
-                              )
-                            }
-                            rows={2}
-                            className={`min-w-[320px] resize-none rounded-lg border px-3 py-2 text-sm focus:border-sky-400 focus:outline-none ${
-                              isDark
-                                ? "border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500"
-                                : "border-slate-200 bg-white text-slate-900"
-                            }`}
-                            placeholder="Most memorable thing that happened today"
-                          />
-                        </td>
-
-                        <td
-                          className={`sticky left-[438px] z-10 border-b border-r px-3 py-2 ${
-                            isDark ? "border-slate-800" : "border-slate-200"
-                          } ${rowShade}`}
-                        >
-                          <textarea
-                            value={entry.remember_this}
-                            onChange={(event) =>
-                              updateEntryField(
-                                day.iso,
-                                "remember_this",
-                                event.target.value,
-                              )
-                            }
-                            rows={2}
-                            className={`min-w-[320px] resize-none rounded-lg border px-3 py-2 text-sm focus:border-sky-400 focus:outline-none ${
-                              isDark
-                                ? "border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500"
-                                : "border-slate-200 bg-white text-slate-900"
-                            }`}
-                            placeholder="A quote, lesson, reminder, or detail"
-                          />
-                        </td>
-
-                        {trackers.map((tracker) => (
-                          <td
-                            key={`${day.iso}-${tracker.id}`}
-                            className={`border-b border-r px-3 py-2 ${
-                              isDark ? "border-slate-800" : "border-slate-200"
-                            } ${rowShade}`}
+                          <div
+                            className={`flex h-full items-center border-r px-1.5 ${isDark ? "border-slate-800" : "border-stone-200"}`}
                           >
-                            {renderTrackerCell(day.iso, tracker)}
-                          </td>
-                        ))}
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={sleepScoreValue}
+                              onChange={(event) =>
+                                updateSleepScore(day.iso, event.target.value)
+                              }
+                              className={`h-[26px] w-full border-0 bg-transparent px-1 py-0 text-[11px] font-medium text-center leading-5 focus:outline-none ${
+                                isDark
+                                  ? "text-slate-100 placeholder:text-slate-500"
+                                  : "text-stone-900 placeholder:text-stone-400"
+                              }`}
+                              placeholder="--"
+                            />
+                          </div>
 
-                        <td
-                          className={`sticky right-0 z-10 border-b px-3 py-2 ${
-                            isDark ? "border-slate-800" : "border-slate-200"
-                          } ${rowShade}`}
+                          {trackers.map((tracker) => (
+                            <div
+                              key={`tracker-cell-${day.iso}-${tracker.id}`}
+                              className={`flex h-full items-center justify-center border-r px-1 ${
+                                isDark ? "border-slate-800" : "border-stone-200"
+                              }`}
+                            >
+                              {renderTrackerCell(day.iso, tracker)}
+                            </div>
+                          ))}
+
+                          <div className="flex h-full items-center px-1.5">
+                            <button
+                              type="button"
+                              onClick={() => saveDay(day.iso)}
+                              disabled={savingDate === day.iso}
+                              className="w-full rounded-lg bg-stone-900 px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {savingDate === day.iso ? "..." : "Save"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div
+                  className={`border-b px-4 ${
+                    isDark
+                      ? "border-slate-800 bg-slate-900"
+                      : "border-stone-200 bg-[#f9f3e6]"
+                  }`}
+                  style={{ height: `${HEADER_HEIGHT}px` }}
+                >
+                  <div className="flex h-full items-end pb-3">
+                    <div>
+                      <div
+                        className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-slate-400" : "text-stone-500"}`}
+                      >
+                        Sleep Score
+                      </div>
+                      <div
+                        className={`mt-0.5 text-[9px] uppercase tracking-[0.16em] ${isDark ? "text-slate-500" : "text-stone-400"}`}
+                      >
+                        Monthly Trend
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`relative px-4 py-0 ${isDark ? "bg-slate-900" : "bg-[#fcfbf6]"}`}
+                  style={{ height: `${chartHeight}px` }}
+                >
+                  {monthDays.map((day, index) => (
+                    <div
+                      key={`chart-band-${day.iso}`}
+                      className={`absolute left-0 right-0 ${getRowTone(isDark, index)}`}
+                      style={{
+                        top: `${index * ROW_HEIGHT}px`,
+                        height: `${ROW_HEIGHT}px`,
+                      }}
+                    />
+                  ))}
+
+                  {monthDays.map((day, index) => (
+                    <div
+                      key={`chart-row-${day.iso}`}
+                      className={`absolute left-0 right-0 border-b ${
+                        isDark ? "border-slate-800/80" : "border-stone-200/80"
+                      }`}
+                      style={{
+                        top: `${(index + 1) * ROW_HEIGHT}px`,
+                      }}
+                    />
+                  ))}
+
+                  <div
+                    className={`absolute top-0 bottom-0 w-px ${isDark ? "bg-slate-800" : "bg-stone-200"}`}
+                    style={{ left: `${CHART_PADDING_LEFT}px` }}
+                  />
+                  <div
+                    className={`absolute top-0 bottom-0 w-px ${isDark ? "bg-slate-800" : "bg-stone-200"}`}
+                    style={{
+                      left: `${CHART_PADDING_LEFT + (CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT) / 2}px`,
+                    }}
+                  />
+                  <div
+                    className={`absolute top-0 bottom-0 w-px ${isDark ? "bg-slate-800" : "bg-stone-200"}`}
+                    style={{ left: `${CHART_WIDTH - CHART_PADDING_RIGHT}px` }}
+                  />
+
+                  <svg
+                    width={CHART_WIDTH}
+                    height={chartHeight}
+                    className="absolute left-4 top-0"
+                  >
+                    {polylinePoints ? (
+                      <polyline
+                        points={polylinePoints}
+                        fill="none"
+                        stroke={isDark ? "#94a3b8" : "#44403c"}
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ) : null}
+
+                    {sleepPoints.map((point) => (
+                      <g key={`sleep-point-${point.dayNumber}`}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r="2.6"
+                          fill={isDark ? "#f8fafc" : "#292524"}
+                        />
+                        <text
+                          x={CHART_WIDTH - 4}
+                          y={point.y + 4}
+                          textAnchor="end"
+                          fontSize="10"
+                          fill={isDark ? "#cbd5e1" : "#57534e"}
                         >
-                          <button
-                            type="button"
-                            onClick={() => saveDay(day.iso)}
-                            disabled={savingDate === day.iso}
-                            className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {savingDate === day.iso ? "..." : "Save"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+                          {point.sleepScore}
+                        </text>
+                      </g>
+                    ))}
+                  </svg>
+
+                  <div
+                    className={`absolute left-4 top-1.5 flex w-[220px] justify-between text-[9px] font-semibold uppercase tracking-[0.16em] ${
+                      isDark ? "text-slate-500" : "text-stone-400"
+                    }`}
+                  >
+                    <span>0</span>
+                    <span>50</span>
+                    <span>100</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
         </section>
       </main>
+
+      {trackerPendingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
+          <div
+            className={`w-full max-w-sm rounded-2xl border p-5 ${
+              isDark
+                ? "border-slate-800 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.65)]"
+                : "border-stone-200 bg-white shadow-[0_24px_80px_rgba(120,113,108,0.18)]"
+            }`}
+          >
+            <div
+              className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                isDark ? "text-slate-400" : "text-stone-500"
+              }`}
+            >
+              Confirm Delete
+            </div>
+            <h2
+              className={`mt-2 text-lg font-semibold ${
+                isDark ? "text-slate-100" : "text-stone-900"
+              }`}
+            >
+              Remove tracker?
+            </h2>
+            <p
+              className={`mt-2 text-sm ${
+                isDark ? "text-slate-400" : "text-stone-600"
+              }`}
+            >
+              This will remove <strong>{trackerPendingDelete.label}</strong> from
+              the Launchpad tracker list.
+            </p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setTrackerPendingDelete(null)}
+                className={`rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] ${
+                  isDark
+                    ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmArchiveTracker}
+                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

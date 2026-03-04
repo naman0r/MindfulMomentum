@@ -536,7 +536,6 @@ def upsert_launchpad_day():
 
         entry_date = data.get("entry_date")
         memorable_moment = (data.get("memorable_moment") or "").strip()
-        remember_this = (data.get("remember_this") or "").strip()
         tracker_values = data.get("tracker_values", {})
 
         if not entry_date:
@@ -562,7 +561,7 @@ def upsert_launchpad_day():
             "google_id": google_id,
             "entry_date": normalized_date,
             "memorable_moment": memorable_moment,
-            "remember_this": remember_this,
+            "remember_this": "",
             "tracker_values": tracker_values,
             "updated_at": datetime.utcnow().isoformat(),
         }
