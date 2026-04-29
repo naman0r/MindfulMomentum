@@ -71,17 +71,11 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      // console.log("Google sign in successful:", result);
 
-      const userData = {
-        google_id: result.user.uid,
-        email: result.user.email,
-        name: result.user.displayName,
-        profile_picture: result.user.photoURL,
-      };
-
-      // console.log("Sending user data to backend:", userData);
-      // console.log("Backend URL:", import.meta.env.VITE_BACKEND_URL);
+      // The backend now verifies a Firebase ID token rather than trusting
+      // client-supplied identity fields. Force a fresh token so we don't send
+      // a stale one immediately after sign-in.
+      const idToken = await result.user.getIdToken(true);
 
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/login`,
@@ -90,7 +84,7 @@ const Login = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(userData),
+          body: JSON.stringify({ id_token: idToken }),
         }
       );
 

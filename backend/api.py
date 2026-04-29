@@ -1,49 +1,53 @@
-# api.py, most routes. 
+# api.py, most routes.
 
-from flask import Blueprint, request, jsonify
-from config import supabase
-from datetime import datetime, timedelta
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+import logging
 import os
 from calendar import monthrange
-from cryptography.fernet import Fernet, InvalidToken
+from datetime import datetime
 
+from cryptography.fernet import Fernet, InvalidToken
+from firebase_admin import auth as firebase_auth
+from firebase_admin.exceptions import FirebaseError
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+
+from config import supabase
+
+logger = logging.getLogger(__name__)
 
 api = Blueprint("api", __name__)
 
 # --- Encryption Setup ---
-# Load the encryption key from environment variables
 JOURNAL_ENCRYPTION_KEY = os.getenv("JOURNAL_ENCRYPTION_KEY")
 if not JOURNAL_ENCRYPTION_KEY:
-    print("WARNING: JOURNAL_ENCRYPTION_KEY environment variable not set. Journal encryption disabled.")
+    logger.warning("JOURNAL_ENCRYPTION_KEY not set. Journal encryption disabled.")
     fernet = None
 else:
     try:
         fernet = Fernet(JOURNAL_ENCRYPTION_KEY.encode())
     except ValueError as e:
-        print(f"ERROR: Invalid JOURNAL_ENCRYPTION_KEY format. Please generate a valid Fernet key. {e}")
+        logger.error("Invalid JOURNAL_ENCRYPTION_KEY format: %s", e)
         fernet = None
+
 
 def encrypt_content(content):
     if fernet and content:
-        return fernet.encrypt(content.encode('utf-8')).decode('utf-8')
-    return content # Return original content if encryption is disabled or content is empty
+        return fernet.encrypt(content.encode("utf-8")).decode("utf-8")
+    return content
+
 
 def decrypt_content(encrypted_content):
     if fernet and encrypted_content:
         try:
-            # Ensure it's bytes before decrypting
             if isinstance(encrypted_content, str):
-                encrypted_content_bytes = encrypted_content.encode('utf-8')
+                encrypted_content_bytes = encrypted_content.encode("utf-8")
             else:
-                encrypted_content_bytes = encrypted_content # Assume it's already bytes if not string
-            
-            decrypted_bytes = fernet.decrypt(encrypted_content_bytes)
-            return decrypted_bytes.decode('utf-8')
+                encrypted_content_bytes = encrypted_content
+            return fernet.decrypt(encrypted_content_bytes).decode("utf-8")
         except (InvalidToken, TypeError, ValueError) as e:
-            print(f"Decryption Error: {e}. Returning placeholder.")
+            logger.warning("Decryption failed: %s", e)
             return "[Content could not be decrypted]"
-    return encrypted_content # Return original (potentially encrypted) content if decryption is disabled or content is empty
+    return encrypted_content
 # --- End Encryption Setup ---
 
 
@@ -71,217 +75,176 @@ def normalize_tracker_type(tracker_type):
     return tracker_type
 
 
-# User Routes
-""" @api.route("/api/login", methods=["GET"]) # lowkey unprotected route, just helps me get the info of all users. 
-def get_users(): 
-    try:
-        response = supabase.from_("users").select("*").execute()
-        return jsonify({"message": "Users fetched successfully", "users": response.data}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500 """
+def _server_error(log_message, exc):
+    logger.exception("%s: %s", log_message, exc)
+    return jsonify({"error": "Internal server error"}), 500
 
 
+# --- User Routes ---
 
-# trying to implement JWT with login. this is the entrypoint where it returns a JWT upon login. 
 @api.route("/api/login", methods=["POST"])
 def login():
+    """Exchange a Firebase ID token for a short-lived backend JWT.
+
+    The client must send a Firebase ID token obtained via the Firebase web SDK
+    (await result.user.getIdToken()). The previous version of this endpoint
+    trusted a client-supplied google_id, which let any caller mint a token for
+    any user. Do not reintroduce that behaviour.
+    """
     try:
-        data = request.json
-        google_id = data.get("google_id")
-        email = data.get("email")
-        name = data.get("name")
-        profile_picture = data.get("profile_picture")
+        data = request.get_json(silent=True) or {}
+        id_token = data.get("id_token")
+        if not id_token:
+            return jsonify({"error": "id_token is required"}), 400
+
+        try:
+            decoded = firebase_auth.verify_id_token(id_token)
+        except (FirebaseError, ValueError) as e:
+            logger.info("Rejected login: %s", e)
+            return jsonify({"error": "Invalid Firebase ID token"}), 401
+
+        google_id = decoded.get("uid")
+        email = decoded.get("email") or data.get("email")
+        name = decoded.get("name") or data.get("name")
+        profile_picture = decoded.get("picture") or data.get("profile_picture")
+
+        if not google_id:
+            return jsonify({"error": "Token missing uid"}), 400
+
         last_logged_in = datetime.utcnow().isoformat()
 
-        if not google_id or not email:
-            return jsonify({"error": "Missing required fields"}), 400
-
-        # Check if user already exists
         response = supabase.from_("users").select("*").eq("google_id", google_id).execute()
         existing_user = response.data
 
         if existing_user:
-            # Update last_logged_in timestamp
             supabase.from_("users").update({"last_logged_in": last_logged_in}).eq("google_id", google_id).execute()
             user = existing_user[0]
         else:
-            # Insert new user
             new_user = {
                 "google_id": google_id,
                 "email": email,
                 "name": name,
                 "profile_picture": profile_picture,
-                "last_logged_in": last_logged_in
+                "last_logged_in": last_logged_in,
             }
             response = supabase.from_("users").insert(new_user).execute()
             user = response.data[0]
 
-        # Generate JWT
         access_token = create_access_token(identity=google_id)
         return jsonify({"message": "User logged in", "user": user, "access_token": access_token}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("login failed", e)
 
 
+# =============================== HABITS ===================================
 
 
-
-## =============================== HABITS ===================================
-
-
-
-# unprotected habits route (debugging purposes only, not for prod)
-""" @api.route("/api/get/habits/all", methods=["GET"])
-def get_all_habits(): 
-    try: 
-    
-        response = supabase.from_("habits").select("*").execute()
-        journals = response.data
-        return jsonify({"all habits" : journals}), 200
-    
-    except Exception as e: 
-        return jsonify({"error" : str(e)}), 500 """
-    
-
-
-# for habits: 
 @api.route("/api/add/habit", methods=["POST"])
 @jwt_required()
 def add_habit():
-    google_id = get_jwt_identity()
-    data = request.json
-    print(f"Received habit data: {data}")  # Debugging
-
-    if not data.get("title"):
-        print("Error: Missing title field")
-        return jsonify({"error": "Title is required"}), 400
-    
-    reminder_time  = data.get("reminder_time")
-    if reminder_time == "":
-        reminder_time = None
-        
-
-    new_habit = {
-        "google_id": google_id,
-        "title": data["title"],
-        "description": data.get("description", ""),
-        "frequency": data.get("frequency", "daily"),
-        "days_of_week": data.get("days_of_week", []),
-        "reminder_time": reminder_time, 
-        "created_at": datetime.utcnow().isoformat(),
-        "completed_dates": [],
-        "streak": 0,
-        "goal": data.get("goal", 1),
-        "progress": 0
-    }
-
     try:
-        response = supabase.from_("habits").insert(new_habit).execute()
-        print("Habit added successfully:", response.data)  # Debugging
+        google_id = get_jwt_identity()
+        data = request.get_json(silent=True) or {}
+
+        if not data.get("title"):
+            return jsonify({"error": "Title is required"}), 400
+
+        reminder_time = data.get("reminder_time")
+        if reminder_time == "":
+            reminder_time = None
+
+        new_habit = {
+            "google_id": google_id,
+            "title": data["title"],
+            "description": data.get("description", ""),
+            "frequency": data.get("frequency", "daily"),
+            "days_of_week": data.get("days_of_week", []),
+            "reminder_time": reminder_time,
+            "created_at": datetime.utcnow().isoformat(),
+            "completed_dates": [],
+            "streak": 0,
+            "goal": data.get("goal", 1),
+            "progress": 0,
+        }
+
+        supabase.from_("habits").insert(new_habit).execute()
         return jsonify({"message": "Habit added successfully"}), 201
     except Exception as e:
-        print("Error adding habit:", str(e))
-        return jsonify({"error": str(e)}), 500
+        return _server_error("add_habit failed", e)
 
 
 @api.route("/api/get/habits", methods=["GET"])
 @jwt_required()
 def get_habits():
-    
-    google_id = get_jwt_identity()  # Extract user identity from JWT wtffffffffff this is cool but is it secure? 
-    
-    response = supabase.from_("habits").select("*").eq("google_id", google_id).execute()
-    habits = response.data
+    try:
+        google_id = get_jwt_identity()
+        response = supabase.from_("habits").select("*").eq("google_id", google_id).execute()
+        habits = response.data
 
-    today = datetime.utcnow().strftime("%A")  # Get the current day (e.g., "Monday")
+        today = datetime.utcnow().strftime("%A")
+        filtered_habits = []
+        for habit in habits:
+            if habit["frequency"] == "daily":
+                filtered_habits.append(habit)
+            elif habit["frequency"] == "weekly" and today in habit["days_of_week"]:
+                filtered_habits.append(habit)
 
-    # Filter habits based on frequency
-    filtered_habits = []
-    for habit in habits:
-        if habit["frequency"] == "daily":
-            filtered_habits.append(habit)
-        elif habit["frequency"] == "weekly" and today in habit["days_of_week"]:
-            filtered_habits.append(habit)
+        return jsonify(filtered_habits)
+    except Exception as e:
+        return _server_error("get_habits failed", e)
 
-    return jsonify(filtered_habits)
 
 @api.route("/api/delete/habit/<id>", methods=["DELETE"])
 @jwt_required()
 def delete_habit(id):
     try:
-        
-        google_id = get_jwt_identity() # extract google id from identity 
-        # Check if the habit exists
-        response = supabase.from_("habits").select("*").eq("id", id).eq("google_id", google_id).execute()
-        
+        google_id = get_jwt_identity()
+        response = supabase.from_("habits").select("id").eq("id", id).eq("google_id", google_id).execute()
+
         if not response.data:
             return jsonify({"error": "Habit not found"}), 404
 
-        # Delete the habit
         supabase.from_("habits").delete().eq("id", id).eq("google_id", google_id).execute()
-        
         return jsonify({"message": "Habit deleted successfully"}), 200
-
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("delete_habit failed", e)
 
 
+# =================  JOURNAL ROUTES ==========================================
 
 
-##=================  JOURNAL ROUTES ==========================================
-
-
-
-## for Journal entries: 
-
-
-
-# get ALL journals (unprotected route, for development purposes only )
-""" @api.route("/api/get/journals/all", methods=["GET"])
-def get_all_entries(): 
-    try: 
-        
-        response = supabase.from_("journals").select("*").execute()
-        journals = response.data
-        return jsonify({"all journals" : journals}), 200
-        
-    except Exception as e: 
-        return jsonify({"error" : str(e)}), 500 """
-
-
-
-# get a user's journals. 
-@api.route("/api/get/journals", methods = ["GET"])
+@api.route("/api/get/journals", methods=["GET"])
 @jwt_required()
 def get_users_journals():
-    try: 
+    try:
         google_id = get_jwt_identity()
-        response = supabase.from_("journals").select("*").eq("google_id", google_id).order('created_at', desc=True).execute()
-        journals = response.data
+        response = (
+            supabase.from_("journals")
+            .select("*")
+            .eq("google_id", google_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        journals = response.data or []
 
-        # Decrypt content for each journal
-        if journals:
-            for journal in journals:
-                journal['content'] = decrypt_content(journal.get('content'))
+        for journal in journals:
+            journal["content"] = decrypt_content(journal.get("content"))
 
         return jsonify({"journals": journals}), 200
-    except Exception as e: 
-        print(f"Error in get_users_journals: {e}") # Added logging
-        return jsonify({"error": str(e)}), 500
-    
-    
-    
-    
+    except Exception as e:
+        return _server_error("get_users_journals failed", e)
+
+
 @api.route("/api/add/journal", methods=["POST"])
 @jwt_required()
-def add_journal_entry(): 
-    try: 
+def add_journal_entry():
+    try:
         google_id = get_jwt_identity()
-        data = request.json
-        
+        data = request.get_json(silent=True) or {}
+
         title = data.get("title")
-        content = data.get("content") # Plaintext content from request
+        content = data.get("content")
         mood = data.get("mood", "neutral")
         tags = data.get("tags", [])
         attachments = data.get("attachments", [])
@@ -290,126 +253,106 @@ def add_journal_entry():
         if not title or not content:
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Encrypt the content before storing
         encrypted_content = encrypt_content(content)
 
         new_entry = {
             "google_id": google_id,
             "title": title,
-            "content": encrypted_content, # Store encrypted content
+            "content": encrypted_content,
             "mood": mood,
             "tags": tags,
             "attachments": attachments,
             "privacy": privacy,
             "created_at": datetime.utcnow().isoformat(),
-            "last_edited_at": datetime.utcnow().isoformat()
+            "last_edited_at": datetime.utcnow().isoformat(),
         }
 
         response = supabase.from_("journals").insert(new_entry).execute()
-        
-        # Decrypt content before sending back in response (optional, but good practice)
-        if response.data:
-             response.data[0]['content'] = decrypt_content(response.data[0].get('content'))
-             
-        return jsonify({"message": "Journal entry added successfully", "journal": response.data}), 201
 
+        if response.data:
+            response.data[0]["content"] = decrypt_content(response.data[0].get("content"))
+
+        return jsonify({"message": "Journal entry added successfully", "journal": response.data}), 201
     except Exception as e:
-        print(f"Error in add_journal_entry: {e}") # Added logging
-        return jsonify({"error": str(e)}), 500
+        return _server_error("add_journal_entry failed", e)
 
 
 @api.route("/api/delete/journal/<id>", methods=["DELETE"])
 @jwt_required()
 def delete_entry(id):
-    try: 
+    try:
         google_id = get_jwt_identity()
 
-        #  Step 1: Fetch journal entry to verify ownership
-        response = supabase.from_("journals").select("google_id").eq("id", id).execute()
-        journal_entry_data = response.data
+        response = (
+            supabase.from_("journals")
+            .select("id")
+            .eq("id", id)
+            .eq("google_id", google_id)
+            .execute()
+        )
 
-        if not journal_entry_data:
+        if not response.data:
             return jsonify({"error": "Journal entry not found"}), 404
 
-        if journal_entry_data[0]["google_id"] != google_id:
-            return jsonify({"error": "Unauthorized: You cannot delete this journal entry"}), 403
-
-        # Step 2: Delete the journal entry
-        delete_response = supabase.from_("journals").delete().eq("id", id).execute()
-
-        # Check if deletion might have failed (optional check, depends on supabase-py behavior)
-        # if not delete_response.data and delete_response.error: # Adjust based on actual response
-        #     return jsonify({"error": f"Failed to delete journal entry: {delete_response.error.message}"}), 500
+        # Filter on both id AND google_id so we never delete another user's row
+        # even if the ownership check above somehow returned the wrong record.
+        supabase.from_("journals").delete().eq("id", id).eq("google_id", google_id).execute()
 
         return jsonify({"message": "Journal entry deleted successfully", "deleted_id": id}), 200
+    except Exception as e:
+        return _server_error("delete_entry failed", e)
 
-    except Exception as e: 
-        print(f"Error in delete_entry: {e}") # Added logging
-        return jsonify({"error": str(e)}), 500
 
-        
-@api.route('/api/get/journal/<id>', methods=["GET"])
+@api.route("/api/get/journal/<id>", methods=["GET"])
 @jwt_required()
 def get_entry_by_id(id):
-    try: 
+    try:
         google_id = get_jwt_identity()
-        response = supabase.from_("journals").select("*").eq("id", id).execute()
-        journal_entry_list = response.data # Renamed to avoid confusion
+        response = (
+            supabase.from_("journals")
+            .select("*")
+            .eq("id", id)
+            .eq("google_id", google_id)
+            .execute()
+        )
+        journal_entry_list = response.data
 
         if not journal_entry_list:
             return jsonify({"error": "Journal entry not found"}), 404
-            
-        journal_entry = journal_entry_list[0] # Get the dictionary
 
-        if journal_entry["google_id"] != google_id:
-            return jsonify({"error": "Unauthorized: You cannot view this journal entry!"}), 403
-        
-        # Decrypt the content before returning
-        journal_entry['content'] = decrypt_content(journal_entry.get('content'))
-        
-        return jsonify({"journal" : journal_entry }), 200
-        
+        journal_entry = journal_entry_list[0]
+        journal_entry["content"] = decrypt_content(journal_entry.get("content"))
+
+        return jsonify({"journal": journal_entry}), 200
     except Exception as e:
-        print(f"Error in get_entry_by_id: {e}") # Added logging
-        return jsonify({"error": str(e)}), 500
-    
-    
+        return _server_error("get_entry_by_id failed", e)
 
-    
+
 # ================================ TASKS ROUTES =================================
-
-# removing uprotected route from prod
-""" 
-@api.route('/api/get/tasks/all', methods=["GET"])
-def get_all_tasks_unprotected(): 
-    try: 
-        response = supabase.from_("tasks").select("*").execute()
-        tasks  = response.data
-        return jsonify({"tasks": tasks}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500 """
-
-
 
 
 @api.route("/api/get/tasks", methods=["GET"])
 @jwt_required()
 def get_tasks():
     try:
-        google_id = get_jwt_identity()  # Extract user identity from JWT
+        google_id = get_jwt_identity()
         response = supabase.from_("tasks").select("*").eq("google_id", google_id).execute()
         tasks = response.data
         return jsonify({"tasks": tasks}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("get_tasks failed", e)
 
 
 @api.route("/api/add/task", methods=["POST"])
 @jwt_required()
 def add_task():
     try:
-        google_id = get_jwt_identity()  # Extract user identity from JWT
-        data = request.json
+        google_id = get_jwt_identity()
+        data = request.get_json(silent=True) or {}
+
+        if not data.get("title"):
+            return jsonify({"error": "Title is required"}), 400
+
         new_task = {
             "google_id": google_id,
             "title": data["title"],
@@ -421,60 +364,56 @@ def add_task():
         response = supabase.from_("tasks").insert(new_task).execute()
         return jsonify({"message": "Task added successfully", "task": response.data}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("add_task failed", e)
 
 
 @api.route("/api/delete/task/<task_id>", methods=["DELETE"])
 @jwt_required()
 def delete_task(task_id):
     try:
-        google_id = get_jwt_identity()  # Extract user identity from JWT
+        google_id = get_jwt_identity()
 
-        # Fetch the task first
-        response = supabase.from_("tasks").select("*").eq("id", task_id).execute()
-        task = response.data
+        response = (
+            supabase.from_("tasks")
+            .select("id")
+            .eq("id", task_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
 
-        if not task:
+        if not response.data:
             return jsonify({"error": "Task not found"}), 404
-        
-        if task[0]["google_id"] != google_id:
-            return jsonify({"error": "You do not have permission to delete this task."}), 403
 
-        # Now, safely delete the task
-        supabase.from_("tasks").delete().eq("id", task_id).execute()
+        supabase.from_("tasks").delete().eq("id", task_id).eq("google_id", google_id).execute()
         return jsonify({"message": "Task deleted successfully"}), 200
-
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("delete_task failed", e)
 
 
 @api.route("/api/toggle/task/<task_id>", methods=["PATCH"])
 @jwt_required()
 def complete_task(task_id):
     try:
-        google_id = get_jwt_identity()  # Extract user identity from JWT
+        google_id = get_jwt_identity()
 
-        # Fetch the task first
-        response = supabase.from_("tasks").select("*").eq("id", task_id).execute()
+        response = (
+            supabase.from_("tasks")
+            .select("completed")
+            .eq("id", task_id)
+            .eq("google_id", google_id)
+            .execute()
+        )
         task = response.data
 
         if not task:
             return jsonify({"error": "Task not found"}), 404
-        
-        if task[0]["google_id"] != google_id:
-            return jsonify({"error": "You do not have permission to modify this task."}), 403
-        
-        
-        if task[0]["completed"] == True :
-            supabase.from_("tasks").update({"completed": False}).eq("id", task_id).execute()
-        else: 
-             # Now, safely update the task
-            supabase.from_("tasks").update({"completed": True}).eq("id", task_id).execute()
-            
-        return jsonify({"message": "Task marked as completed"}), 200
 
+        new_value = not bool(task[0]["completed"])
+        supabase.from_("tasks").update({"completed": new_value}).eq("id", task_id).eq("google_id", google_id).execute()
+
+        return jsonify({"message": "Task toggled", "completed": new_value}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("complete_task failed", e)
 
 
 # ================================ LAUNCHPAD ROUTES =================================
@@ -524,7 +463,7 @@ def get_launchpad_month():
             200,
         )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("get_launchpad_month failed", e)
 
 
 @api.route("/api/launchpad/day", methods=["POST"])
@@ -532,7 +471,7 @@ def get_launchpad_month():
 def upsert_launchpad_day():
     try:
         google_id = get_jwt_identity()
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
 
         entry_date = data.get("entry_date")
         memorable_moment = (data.get("memorable_moment") or "").strip()
@@ -582,7 +521,7 @@ def upsert_launchpad_day():
         entry = response.data[0] if response.data else payload
         return jsonify({"message": "Launchpad day created", "entry": entry}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("upsert_launchpad_day failed", e)
 
 
 @api.route("/api/launchpad/trackers", methods=["POST"])
@@ -590,7 +529,7 @@ def upsert_launchpad_day():
 def create_launchpad_tracker():
     try:
         google_id = get_jwt_identity()
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
 
         label = (data.get("label") or "").strip()
         tracker_type = normalize_tracker_type(data.get("tracker_type"))
@@ -627,7 +566,7 @@ def create_launchpad_tracker():
         tracker = response.data[0] if response.data else tracker_payload
         return jsonify({"message": "Tracker created", "tracker": tracker}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("create_launchpad_tracker failed", e)
 
 
 @api.route("/api/launchpad/tracker/<tracker_id>", methods=["PATCH"])
@@ -635,11 +574,11 @@ def create_launchpad_tracker():
 def update_launchpad_tracker(tracker_id):
     try:
         google_id = get_jwt_identity()
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
 
         existing_tracker = (
             supabase.from_("launchpad_trackers")
-            .select("*")
+            .select("id")
             .eq("id", tracker_id)
             .eq("google_id", google_id)
             .execute()
@@ -692,7 +631,7 @@ def update_launchpad_tracker(tracker_id):
         tracker = response.data[0] if response.data else None
         return jsonify({"message": "Tracker updated", "tracker": tracker}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("update_launchpad_tracker failed", e)
 
 
 @api.route("/api/launchpad/tracker/<tracker_id>", methods=["DELETE"])
@@ -722,4 +661,4 @@ def archive_launchpad_tracker(tracker_id):
         tracker = response.data[0] if response.data else None
         return jsonify({"message": "Tracker archived", "tracker": tracker}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _server_error("archive_launchpad_tracker failed", e)

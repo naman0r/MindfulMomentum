@@ -85,7 +85,7 @@ async function toggleTask(taskId) {
       if (!token) throw new Error("No token found");
 
       const response = await fetch(
-        `https://mindfulmomentum-backend-take2-production.up.railway.app/api/toggle/task/${taskId}`,
+        `https://mindfulmomentum-backend.onrender.com/api/toggle/task/${taskId}`,
         {
           method: "PATCH",
           headers: {
