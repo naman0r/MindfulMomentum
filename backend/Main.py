@@ -1,25 +1,21 @@
-# main.py, entry point. 
+# main.py, entry point.
 
-from flask import Flask, jsonify, request, make_response
-from flask_cors import CORS
-from config import supabase
 from datetime import timedelta
-from api import api
+from flask import Flask, jsonify
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
-from flask_talisman import Talisman #to make sevrer more secure, add https
 
+from api import api
 
 import os
 
 load_dotenv()
 
 
-# test. 
 app = Flask(__name__)
 
-# Configure CORS
-CORS(app, 
+CORS(app,
      resources={r"/*": {
          "origins": ["http://localhost:5173", "http://localhost:3000", "https://mindfulmomentum.vercel.app", "https://mindfulmomentum-frontend-drj7puuih-namans-projects-8a5a8d52.vercel.app", "https://mindfulmomentum-frontend.vercel.app"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -27,37 +23,17 @@ CORS(app,
          "supports_credentials": True
      }})
 
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")  # Load JWT Secret Key from .env
-# app.config["PREFERRED_URL_SCHEME"] = "https" # ???? does this actualy work
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=30) # Set token to expire after 30 days instead of 2 hours. 
-
-# Talisman(app)
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 
 jwt = JWTManager(app)
-
-
-
-
-
 
 app.register_blueprint(api)
 
 
-@app.route("/api/test", methods=["GET"])
-def test():
-    return jsonify({"message": "Flask is working!"})
-
-
-@app.route("/api/test-supabase", methods=["GET"])
-def test_supabase():
-    try:
-        response = supabase.from_("users").select("*").limit(1).execute()
-        return jsonify({"message": "Supabase is connected!", "data": response.data})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
+@app.route("/api/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
 
 
 if __name__ == "__main__":
