@@ -13,5 +13,5 @@ jobs:
       - name: Ping Supabase via backend
         run: |
           curl -sf --max-time 30 \
-            "${{ secrets.BACKEND_URL }}/api/test-supabase" \
+            "${{ secrets.BACKEND_URL }}/api/health?ping_db=true" \
             || echo "Ping failed, but workflow won't block"

@@ -1,7 +1,7 @@
 # main.py, entry point.
 
 from datetime import timedelta
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
@@ -33,6 +33,9 @@ app.register_blueprint(api)
 
 @app.route("/api/health", methods=["GET"])
 def health():
+    if request.args.get("ping_db"):
+        from config import supabase
+        supabase.from_("users").select("id").limit(1).execute()
     return jsonify({"status": "ok"})
 
 
