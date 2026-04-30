@@ -14,11 +14,14 @@ from supabase import create_client
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+# This key bypasses RLS, so it must be the service_role key, not the anon key.
+# Kept the env var name for backwards compat with existing Render config; the
+# new SUPABASE_SERVICE_ROLE_KEY name takes precedence if both are set.
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY or not JWT_SECRET_KEY:
-    raise ValueError("Error: Supabase URL, key, or JWT secret key is not set in .env file")
+    raise ValueError("Error: Supabase URL, key, or JWT secret key is not set")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
