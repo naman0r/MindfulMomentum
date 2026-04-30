@@ -5,6 +5,7 @@ import os
 from calendar import monthrange
 from datetime import datetime
 
+import firebase_admin
 from cryptography.fernet import Fernet, InvalidToken
 from firebase_admin import auth as firebase_auth
 from firebase_admin.exceptions import FirebaseError
@@ -97,11 +98,20 @@ def login():
         if not id_token:
             return jsonify({"error": "id_token is required"}), 400
 
+        if not firebase_admin._apps:
+            logger.error("Login attempted but Firebase Admin is not initialized.")
+            return jsonify({"error": "Auth not configured on server"}), 503
+
         try:
             decoded = firebase_auth.verify_id_token(id_token)
         except (FirebaseError, ValueError) as e:
             logger.info("Rejected login: %s", e)
             return jsonify({"error": "Invalid Firebase ID token"}), 401
+        except Exception as e:
+            # Catches transport / cert-fetch / unexpected auth errors so a bad
+            # token doesn't masquerade as a 500.
+            logger.exception("verify_id_token raised %s: %s", type(e).__name__, e)
+            return jsonify({"error": "Token verification failed"}), 401
 
         google_id = decoded.get("uid")
         email = decoded.get("email") or data.get("email")
